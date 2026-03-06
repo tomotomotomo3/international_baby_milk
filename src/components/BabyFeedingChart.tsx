@@ -2,8 +2,9 @@
 
 import { useState, useMemo } from "react";
 import {
-  LineChart,
+  ComposedChart,
   Line,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -13,6 +14,7 @@ import {
   BarChart,
   Bar,
   ReferenceLine,
+  LineChart,
 } from "recharts";
 
 interface BabyInput {
@@ -29,6 +31,11 @@ interface WeightRow {
   whoEstimate: number;
   actual: number | null;
   actualProjection: number | null;
+  mhlw3rd: number;
+  mhlw10th: number;
+  mhlw50th: number;
+  mhlw90th: number;
+  mhlw97th: number;
 }
 
 // WHO Child Growth Standards 2006 - 50th percentile weight (grams)
@@ -84,6 +91,53 @@ const WHO_GIRLS: WHORef = [
   [180, 7369],
 ];
 
+// 令和5年(2023) 乳幼児身体発育調査 - 体重パーセンタイル値 (grams)
+// Source: こども家庭庁 https://www.cfa.go.jp/policies/boshihoken/r5-nyuuyoujityousa
+// [day, 3rd, 10th, 50th, 90th, 97th]
+type MHLWRef = readonly (readonly [number, number, number, number, number, number])[];
+
+const MHLW_BOYS: MHLWRef = [
+  [0,   2316, 2581, 3057, 3556, 3815],
+  [1,   2262, 2494, 2958, 3450, 3708],
+  [2,   2214, 2452, 2910, 3402, 3652],
+  [3,   2224, 2458, 2928, 3426, 3676],
+  [4,   2224, 2478, 2953, 3464, 3700],
+  [30,  3226, 3525, 4151, 4763, 5044],
+  [45,  3756, 4093, 4798, 5485, 5801],  // 1~2ヶ月中間
+  [75,  4591, 4982, 5802, 6604, 6974],  // 2~3ヶ月中間
+  [105, 5223, 5650, 6550, 7434, 7842],  // 3~4ヶ月中間
+  [135, 5711, 6163, 7118, 8063, 8500],  // 4~5ヶ月中間
+  [165, 6094, 6563, 7560, 8550, 9010],  // 5~6ヶ月中間
+  [180, 6399, 6881, 7909, 8933, 9411],  // 6~7ヶ月
+];
+
+const MHLW_GIRLS: MHLWRef = [
+  [0,   2222, 2460, 2950, 3436, 3662],
+  [1,   2169, 2372, 2854, 3322, 3562],
+  [2,   2120, 2334, 2798, 3270, 3492],
+  [3,   2126, 2344, 2810, 3282, 3506],
+  [4,   2130, 2350, 2824, 3295, 3512],
+  [30,  3047, 3324, 3907, 4477, 4740],
+  [45,  3505, 3806, 4440, 5066, 5356],
+  [75,  4275, 4612, 5334, 6056, 6392],
+  [105, 4899, 5267, 6061, 6862, 7239],
+  [135, 5397, 5790, 6642, 7510, 7920],
+  [165, 5791, 6203, 7103, 8026, 8465],
+  [180, 6100, 6527, 7466, 8436, 8899],
+];
+
+function interpolateMHLW(day: number, ref: MHLWRef, idx: number): number {
+  if (day <= ref[0][0]) return ref[0][idx];
+  if (day >= ref[ref.length - 1][0]) return ref[ref.length - 1][idx];
+  for (let i = 0; i < ref.length - 1; i++) {
+    if (day >= ref[i][0] && day <= ref[i + 1][0]) {
+      const t = (day - ref[i][0]) / (ref[i + 1][0] - ref[i][0]);
+      return ref[i][idx] + t * (ref[i + 1][idx] - ref[i][idx]);
+    }
+  }
+  return ref[ref.length - 1][idx];
+}
+
 function interpolateWHO(day: number, ref: WHORef): number {
   if (day <= ref[0][0]) return ref[0][1];
   if (day >= ref[ref.length - 1][0]) return ref[ref.length - 1][1];
@@ -128,7 +182,7 @@ interface ScheduleRow {
   weekNum: number;
 }
 
-function generateWeightData(input: BabyInput, whoRef: WHORef): WeightRow[] {
+function generateWeightData(input: BabyInput, whoRef: WHORef, mhlwRef: MHLWRef): WeightRow[] {
   const data: WeightRow[] = [];
   const whoBirthWeight = whoRef[0][1];
   const scaleFactor = input.birthWeight / whoBirthWeight;
@@ -169,6 +223,10 @@ function generateWeightData(input: BabyInput, whoRef: WHORef): WeightRow[] {
       }
     }
 
+    // 厚労省パーセンタイル（出生体重でスケーリング）
+    const mhlwBirthWeight50 = mhlwRef[0][3]; // 出生時50thパーセンタイル
+    const mhlwScale = input.birthWeight / mhlwBirthWeight50;
+
     data.push({
       day,
       date: dateStr,
@@ -176,6 +234,11 @@ function generateWeightData(input: BabyInput, whoRef: WHORef): WeightRow[] {
       actual: day <= input.currentDay ? Math.round(actualWeight) : null,
       actualProjection:
         day >= input.currentDay ? Math.round(actualWeight) : null,
+      mhlw3rd: Math.round(interpolateMHLW(day, mhlwRef, 1) * mhlwScale),
+      mhlw10th: Math.round(interpolateMHLW(day, mhlwRef, 2) * mhlwScale),
+      mhlw50th: Math.round(interpolateMHLW(day, mhlwRef, 3) * mhlwScale),
+      mhlw90th: Math.round(interpolateMHLW(day, mhlwRef, 4) * mhlwScale),
+      mhlw97th: Math.round(interpolateMHLW(day, mhlwRef, 5) * mhlwScale),
     });
   }
   return data;
@@ -569,7 +632,8 @@ export default function BabyFeedingChart() {
   const weightData = useMemo(
     () => {
       const whoRef = sex === "boy" ? WHO_BOYS : WHO_GIRLS;
-      return babyInput ? generateWeightData(babyInput, whoRef) : [];
+      const mhlwRef = sex === "boy" ? MHLW_BOYS : MHLW_GIRLS;
+      return babyInput ? generateWeightData(babyInput, whoRef, mhlwRef) : [];
     },
     [babyInput, sex]
   );
@@ -1090,10 +1154,10 @@ export default function BabyFeedingChart() {
                     margin: "0 0 20px",
                   }}
                 >
-                  WHO 50th percentile基準 vs 現在のペース予測
+                  WHO基準 + 厚労省パーセンタイル帯 vs 現在のペース予測
                 </p>
                 <ResponsiveContainer width="100%" height={380}>
-                  <LineChart
+                  <ComposedChart
                     data={weightData}
                     margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
                   >
@@ -1105,7 +1169,7 @@ export default function BabyFeedingChart() {
                       dataKey="day"
                       stroke="#cbd5e1"
                       tick={{ fill: "#94a3b8", fontSize: 10 }}
-                      tickFormatter={(v) =>
+                      tickFormatter={(v: number) =>
                         v % 14 === 0 ? `${v / 7}w` : ""
                       }
                     />
@@ -1117,12 +1181,64 @@ export default function BabyFeedingChart() {
                           Math.floor(dataMin / 100) * 100 - 100,
                         "auto",
                       ]}
-                      tickFormatter={(v) => `${(v / 1000).toFixed(1)}kg`}
+                      tickFormatter={(v: number) => `${(v / 1000).toFixed(1)}kg`}
                     />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend
                       wrapperStyle={{ fontSize: 13, paddingTop: 10 }}
                     />
+                    {/* 厚労省 3rd-97th パーセンタイル帯 */}
+                    <Area
+                      type="monotone"
+                      dataKey="mhlw97th"
+                      stroke="none"
+                      fill="#e0f2fe"
+                      fillOpacity={0.6}
+                      name="厚労省 3-97th"
+                      unit="g"
+                      legendType="rect"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="mhlw3rd"
+                      stroke="none"
+                      fill="#ffffff"
+                      fillOpacity={1}
+                      name=""
+                      legendType="none"
+                    />
+                    {/* 厚労省 10th-90th パーセンタイル帯 */}
+                    <Area
+                      type="monotone"
+                      dataKey="mhlw90th"
+                      stroke="none"
+                      fill="#bae6fd"
+                      fillOpacity={0.5}
+                      name="厚労省 10-90th"
+                      unit="g"
+                      legendType="rect"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="mhlw10th"
+                      stroke="none"
+                      fill="#ffffff"
+                      fillOpacity={1}
+                      name=""
+                      legendType="none"
+                    />
+                    {/* 厚労省 50th ライン */}
+                    <Line
+                      type="monotone"
+                      dataKey="mhlw50th"
+                      stroke="#7dd3fc"
+                      strokeWidth={1.5}
+                      dot={false}
+                      name="厚労省50th"
+                      unit="g"
+                      strokeDasharray="6 3"
+                    />
+                    {/* WHO推定 */}
                     <Line
                       type="monotone"
                       dataKey="whoEstimate"
@@ -1164,7 +1280,7 @@ export default function BabyFeedingChart() {
                         fontSize: 13,
                       }}
                     />
-                  </LineChart>
+                  </ComposedChart>
                 </ResponsiveContainer>
 
                 {/* Milestone table */}
@@ -1181,6 +1297,7 @@ export default function BabyFeedingChart() {
                         {[
                           "時点",
                           "WHO推定",
+                          "厚労省範囲",
                           "現ペース予測",
                           "差",
                         ].map((h, i) => (
@@ -1243,6 +1360,17 @@ export default function BabyFeedingChart() {
                               }}
                             >
                               {(row.whoEstimate / 1000).toFixed(2)}kg
+                            </td>
+                            <td
+                              style={{
+                                padding: "8px",
+                                textAlign: "center",
+                                color: "#0ea5e9",
+                                fontWeight: 600,
+                                fontSize: 12,
+                              }}
+                            >
+                              {(row.mhlw3rd / 1000).toFixed(2)}~{(row.mhlw97th / 1000).toFixed(2)}kg
                             </td>
                             <td
                               style={{
