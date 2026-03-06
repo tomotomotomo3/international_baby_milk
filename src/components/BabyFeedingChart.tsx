@@ -96,6 +96,20 @@ function interpolateWHO(day: number, ref: WHORef): number {
   return ref[ref.length - 1][1];
 }
 
+// WHO (2011) Guidelines on Optimal Feeding of LBW Infants
+// 日齢に応じた推奨授乳量 (ml/kg/日)
+function getWhoMlPerKg(day: number): number {
+  if (day <= 1) return 60;
+  if (day === 2) return 80;
+  if (day === 3) return 100;
+  if (day === 4) return 120;
+  if (day === 5) return 140;
+  if (day === 6) return 150;
+  if (day === 7) return 160;
+  if (day <= 14) return Math.min(160 + ((day - 7) * 20) / 7, 180);
+  return 180;
+}
+
 interface FeedingRow {
   weight: string;
   weightNum: number;
@@ -131,20 +145,28 @@ function generateWeightData(input: BabyInput, whoRef: WHORef): WeightRow[] {
 
     let actualWeight: number;
     if (day <= input.currentDay) {
-      const t = day / input.currentDay;
+      const t = input.currentDay > 0 ? day / input.currentDay : 0;
       actualWeight = input.birthWeight + t * (input.currentWeight - input.birthWeight);
     } else {
-      const whoToday = interpolateWHO(input.currentDay, whoRef) * scaleFactor;
-      const whoTomorrow = interpolateWHO(input.currentDay + 1, whoRef) * scaleFactor;
-      const whoDailyGainAtToday = whoTomorrow - whoToday;
+      const whoAtCurrentDay = interpolateWHO(input.currentDay, whoRef) * scaleFactor;
       const whoAtDay = interpolateWHO(day, whoRef) * scaleFactor;
-      const daysFromNow = day - input.currentDay;
-      const avgDecay =
-        whoDailyGainAtToday > 0
-          ? ((whoAtDay - whoToday) / (daysFromNow * whoDailyGainAtToday))
-          : 1;
-      actualWeight =
-        input.currentWeight + daysFromNow * actualDailyGain * Math.max(0, avgDecay);
+
+      if (actualDailyGain <= 0 || input.currentDay <= 10) {
+        // 生理的体重減少期: WHO曲線に沿って予測（現在体重からのオフセットを維持）
+        const whoGainFromNow = whoAtDay - whoAtCurrentDay;
+        actualWeight = input.currentWeight + whoGainFromNow;
+      } else {
+        // 成長期: 実際の成長率をWHO曲線の形で減衰させて予測
+        const whoTomorrow = interpolateWHO(input.currentDay + 1, whoRef) * scaleFactor;
+        const whoDailyGainAtToday = whoTomorrow - whoAtCurrentDay;
+        const daysFromNow = day - input.currentDay;
+        const avgDecay =
+          whoDailyGainAtToday > 0
+            ? ((whoAtDay - whoAtCurrentDay) / (daysFromNow * whoDailyGainAtToday))
+            : 1;
+        actualWeight =
+          input.currentWeight + daysFromNow * actualDailyGain * Math.max(0, avgDecay);
+      }
     }
 
     data.push({
@@ -187,19 +209,7 @@ function generateDailySchedule(input: BabyInput, whoRef: WHORef): ScheduleRow[] 
     // WHO推定体重をスケーリングして使用（生理的体重減少も含む）
     const weight = interpolateWHO(day, whoRef) * scaleFactor;
 
-    // WHO (2011) Guidelines on Optimal Feeding of LBW Infants
-    // 段階的増量スケジュール: 20ml/kg/日ずつ増加
-    let mlPerKg: number;
-    if (day <= 1) mlPerKg = 60;
-    else if (day === 2) mlPerKg = 80;
-    else if (day === 3) mlPerKg = 100;
-    else if (day === 4) mlPerKg = 120;
-    else if (day === 5) mlPerKg = 140;
-    else if (day === 6) mlPerKg = 150;
-    else if (day === 7) mlPerKg = 160;
-    else if (day <= 14) mlPerKg = 160 + ((day - 7) * 20) / 7;
-    else mlPerKg = 180;
-    mlPerKg = Math.min(mlPerKg, 180);
+    const mlPerKg = getWhoMlPerKg(day);
 
     const totalMl = Math.round((weight / 1000) * mlPerKg);
     const perFeed8 = Math.round(totalMl / 8);
@@ -678,12 +688,20 @@ export default function BabyFeedingChart() {
     ? Math.round(weightGain / babyInput.currentDay)
     : 0;
   const whoPerFeed = babyInput
-    ? {
-        low: Math.round(((babyInput.currentWeight / 1000) * 150) / feedCount),
-        high: Math.round(((babyInput.currentWeight / 1000) * 180) / feedCount),
-        totalLow: Math.round((babyInput.currentWeight / 1000) * 150),
-        totalHigh: Math.round((babyInput.currentWeight / 1000) * 180),
-      }
+    ? (() => {
+        const todayMlPerKg = getWhoMlPerKg(babyInput.currentDay);
+        const isFullFeeds = babyInput.currentDay >= 14;
+        const weightKg = babyInput.currentWeight / 1000;
+        return {
+          low: Math.round((weightKg * (isFullFeeds ? 150 : todayMlPerKg)) / feedCount),
+          high: Math.round((weightKg * (isFullFeeds ? 180 : todayMlPerKg)) / feedCount),
+          totalLow: Math.round(weightKg * (isFullFeeds ? 150 : todayMlPerKg)),
+          totalHigh: Math.round(weightKg * (isFullFeeds ? 180 : todayMlPerKg)),
+          mlPerKgLow: isFullFeeds ? 150 : todayMlPerKg,
+          mlPerKgHigh: isFullFeeds ? 180 : todayMlPerKg,
+          isSingleTarget: !isFullFeeds,
+        };
+      })()
     : null;
 
   const inputStyle = {
@@ -906,13 +924,46 @@ export default function BabyFeedingChart() {
           {/* Today's Milk Guide */}
           {babyInput && whoPerFeed && (
             <div
-              className="milk-grid"
+              className={whoPerFeed.isSingleTarget ? "" : "milk-grid"}
               style={{
                 marginTop: 16,
                 paddingTop: 16,
                 borderTop: "1px solid #e2e8f0",
               }}
             >
+              {whoPerFeed.isSingleTarget ? (
+                <div
+                  style={{
+                    background: "#eff6ff",
+                    borderRadius: 10,
+                    padding: "14px 18px",
+                    border: "1px solid #bfdbfe",
+                  }}
+                >
+                  <div
+                    style={{ fontSize: 13, color: "#2563eb", fontWeight: 700 }}
+                  >
+                    今日のミルク目安 (WHO推奨)
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 28,
+                      fontWeight: 800,
+                      color: "#1d4ed8",
+                      margin: "4px 0",
+                    }}
+                  >
+                    {whoPerFeed.low}ml x {feedCount}回
+                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: "#1d4ed8", margin: "4px 0" }}>
+                    1日合計 {whoPerFeed.totalLow}ml
+                  </div>
+                  <div style={{ fontSize: 13, color: "#64748b" }}>
+                    ({whoPerFeed.mlPerKgLow}ml/kg/日 - 生後{babyInput.currentDay}日目の推奨量)
+                  </div>
+                </div>
+              ) : (
+                <>
               <div
                 style={{
                   background: "#f0fdf4",
@@ -973,6 +1024,8 @@ export default function BabyFeedingChart() {
                   (180ml/kg/日)
                 </div>
               </div>
+                </>
+              )}
             </div>
           )}
         </div>
