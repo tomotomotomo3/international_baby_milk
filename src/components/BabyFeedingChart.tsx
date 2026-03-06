@@ -303,6 +303,9 @@ interface TooltipPayloadItem {
   payload?: Record<string, unknown>;
 }
 
+// 厚労省系の項目名（ツールチップで範囲にまとめるためスキップ）
+const MHLW_KEYS = new Set(["厚労省 3-97th", "厚労省 10-90th", "厚労省50th"]);
+
 function CustomTooltip({
   active,
   payload,
@@ -315,6 +318,13 @@ function CustomTooltip({
   const row = payload[0].payload;
   const date = row?.date as string | undefined;
   const day = row?.day as number | undefined;
+  const mhlw3rd = row?.mhlw3rd as number | undefined;
+  const mhlw97th = row?.mhlw97th as number | undefined;
+  const mhlw10th = row?.mhlw10th as number | undefined;
+  const mhlw90th = row?.mhlw90th as number | undefined;
+  const mhlw50th = row?.mhlw50th as number | undefined;
+  const hasMhlw = mhlw3rd != null;
+
   return (
     <div
       style={{
@@ -323,30 +333,45 @@ function CustomTooltip({
         borderRadius: 8,
         border: "1px solid #e2e8f0",
         boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+        maxWidth: 260,
       }}
     >
       {(date != null || day != null) && (
-        <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 6px", fontWeight: 700 }}>
+        <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 8px", fontWeight: 700, borderBottom: "1px solid #e2e8f0", paddingBottom: 6 }}>
           {date}{day != null ? ` (生後${day}日)` : ""}
         </p>
       )}
       {payload
-        .filter((p) => p.name && p.name.length > 0)
+        .filter((p) => p.name && p.name.length > 0 && !MHLW_KEYS.has(p.name))
         .map((p, i) => (
         <p
           key={i}
           style={{
             color: p.color,
-            fontSize: 15,
-            margin: "2px 0",
+            fontSize: 14,
+            margin: "3px 0",
             fontWeight: 600,
           }}
         >
-          {p.name}:{" "}
-          {typeof p.value === "number" ? p.value.toLocaleString() : p.value}
-          {p.unit || ""}
+          {p.name}: {typeof p.value === "number" ? p.value.toLocaleString() : p.value}{p.unit || ""}
         </p>
       ))}
+      {hasMhlw && (
+        <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid #f1f5f9" }}>
+          <p style={{ fontSize: 12, color: "#16a34a", fontWeight: 700, margin: "0 0 2px" }}>
+            厚労省 (令和5年)
+          </p>
+          <p style={{ fontSize: 12, color: "#64748b", margin: "1px 0" }}>
+            50th: {mhlw50th?.toLocaleString()}g
+          </p>
+          <p style={{ fontSize: 12, color: "#94a3b8", margin: "1px 0" }}>
+            10-90th: {mhlw10th?.toLocaleString()}~{mhlw90th?.toLocaleString()}g
+          </p>
+          <p style={{ fontSize: 12, color: "#cbd5e1", margin: "1px 0" }}>
+            3-97th: {mhlw3rd?.toLocaleString()}~{mhlw97th?.toLocaleString()}g
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -1198,13 +1223,13 @@ export default function BabyFeedingChart() {
                     <Legend
                       wrapperStyle={{ fontSize: 13, paddingTop: 10 }}
                     />
-                    {/* 厚労省 3rd-97th パーセンタイル帯 */}
+                    {/* 厚労省 3rd-97th パーセンタイル帯 (薄緑) */}
                     <Area
                       type="monotone"
                       dataKey="mhlw97th"
                       stroke="none"
-                      fill="#e0f2fe"
-                      fillOpacity={0.6}
+                      fill="#dcfce7"
+                      fillOpacity={0.7}
                       name="厚労省 3-97th"
                       unit="g"
                       legendType="rect"
@@ -1218,13 +1243,13 @@ export default function BabyFeedingChart() {
                       name=""
                       legendType="none"
                     />
-                    {/* 厚労省 10th-90th パーセンタイル帯 */}
+                    {/* 厚労省 10th-90th パーセンタイル帯 (濃緑) */}
                     <Area
                       type="monotone"
                       dataKey="mhlw90th"
                       stroke="none"
-                      fill="#bae6fd"
-                      fillOpacity={0.5}
+                      fill="#bbf7d0"
+                      fillOpacity={0.7}
                       name="厚労省 10-90th"
                       unit="g"
                       legendType="rect"
@@ -1238,11 +1263,11 @@ export default function BabyFeedingChart() {
                       name=""
                       legendType="none"
                     />
-                    {/* 厚労省 50th ライン */}
+                    {/* 厚労省 50th ライン (緑) */}
                     <Line
                       type="monotone"
                       dataKey="mhlw50th"
-                      stroke="#7dd3fc"
+                      stroke="#22c55e"
                       strokeWidth={1.5}
                       dot={false}
                       name="厚労省50th"
