@@ -346,8 +346,8 @@ export default function BabyFeedingChart() {
     (d) => d.day % 3 === 0 || (babyInput && d.day === babyInput.currentDay)
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = () => {
+    if (!birthDateStr || !birthWeightStr || !currentWeightStr) return;
     setSubmitted(true);
   };
 
@@ -423,8 +423,7 @@ export default function BabyFeedingChart() {
           </h1>
 
           {/* Input Form */}
-          <form
-            onSubmit={handleSubmit}
+          <div
             style={{
               display: "grid",
               gridTemplateColumns: "1fr 1fr 1fr auto",
@@ -442,7 +441,6 @@ export default function BabyFeedingChart() {
                   setSubmitted(false);
                 }}
                 max={toDateInputValue(new Date())}
-                required
                 style={{
                   ...inputStyle,
                   colorScheme: "dark",
@@ -459,9 +457,6 @@ export default function BabyFeedingChart() {
                   setSubmitted(false);
                 }}
                 placeholder="例: 2260"
-                min={500}
-                max={5000}
-                required
                 style={inputStyle}
               />
             </div>
@@ -475,14 +470,12 @@ export default function BabyFeedingChart() {
                   setSubmitted(false);
                 }}
                 placeholder="例: 2950"
-                min={500}
-                max={10000}
-                required
                 style={inputStyle}
               />
             </div>
             <button
-              type="submit"
+              type="button"
+              onClick={handleSubmit}
               style={{
                 padding: "10px 24px",
                 borderRadius: 10,
@@ -498,7 +491,7 @@ export default function BabyFeedingChart() {
             >
               表示
             </button>
-          </form>
+          </div>
 
           {/* Baby Info Summary */}
           {babyInput && (
@@ -551,6 +544,75 @@ export default function BabyFeedingChart() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Today's Milk Guide */}
+          {babyInput && whoPerFeed && (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 12,
+                marginTop: 16,
+                paddingTop: 16,
+                borderTop: "1px solid rgba(255,255,255,0.08)",
+              }}
+            >
+              <div
+                style={{
+                  background: "rgba(34,211,153,0.08)",
+                  borderRadius: 10,
+                  padding: "14px 18px",
+                  border: "1px solid rgba(34,211,153,0.2)",
+                }}
+              >
+                <div
+                  style={{ fontSize: 10, color: "#6ee7b7", fontWeight: 700 }}
+                >
+                  今日のミルク目安 (WHO 150ml/kg/日)
+                </div>
+                <div
+                  style={{
+                    fontSize: 24,
+                    fontWeight: 800,
+                    color: "#34d399",
+                    margin: "4px 0",
+                  }}
+                >
+                  {whoPerFeed.low}ml x 8回
+                </div>
+                <div style={{ fontSize: 11, color: "#94a3b8" }}>
+                  1日合計 {whoPerFeed.totalLow}ml
+                </div>
+              </div>
+              <div
+                style={{
+                  background: "rgba(34,211,238,0.08)",
+                  borderRadius: 10,
+                  padding: "14px 18px",
+                  border: "1px solid rgba(34,211,238,0.2)",
+                }}
+              >
+                <div
+                  style={{ fontSize: 10, color: "#67e8f9", fontWeight: 700 }}
+                >
+                  今日のミルク目安 (WHO 180ml/kg/日)
+                </div>
+                <div
+                  style={{
+                    fontSize: 24,
+                    fontWeight: 800,
+                    color: "#22d3ee",
+                    margin: "4px 0",
+                  }}
+                >
+                  {whoPerFeed.high}ml x 8回
+                </div>
+                <div style={{ fontSize: 11, color: "#94a3b8" }}>
+                  1日合計 {whoPerFeed.totalHigh}ml
+                </div>
+              </div>
             </div>
           )}
         </div>
