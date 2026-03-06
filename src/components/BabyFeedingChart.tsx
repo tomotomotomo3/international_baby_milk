@@ -32,28 +32,47 @@ interface WeightRow {
 }
 
 // WHO Child Growth Standards 2006 - 50th percentile weight (grams)
-// Boys and girls average
 // Source: WHO Multicentre Growth Reference Study Group
-const WHO_WEIGHT_REFERENCE: [number, number][] = [
-  [0, 3300],
-  [3, 3200], // physiological nadir (~3%)
-  [7, 3300], // recovery
+// https://www.who.int/tools/child-growth-standards/standards/weight-for-age
+type WHORef = readonly (readonly [number, number])[];
+
+const WHO_BOYS: WHORef = [
+  [0, 3346],
+  [3, 3246], // physiological nadir (~3%)
+  [7, 3346], // recovery
   [14, 3600],
-  [30, 4300],
-  [45, 4900],
-  [60, 5400],
-  [75, 5800],
-  [90, 6200],
-  [105, 6500],
-  [120, 6800],
-  [135, 7100],
-  [150, 7300],
-  [165, 7500],
-  [180, 7700],
+  [30, 4471],
+  [45, 5100],
+  [60, 5575],
+  [75, 6000],
+  [90, 6392],
+  [105, 6700],
+  [120, 6998],
+  [135, 7250],
+  [150, 7495],
+  [165, 7720],
+  [180, 7934],
 ];
 
-function interpolateWHO(day: number): number {
-  const ref = WHO_WEIGHT_REFERENCE;
+const WHO_GIRLS: WHORef = [
+  [0, 3232],
+  [3, 3135], // physiological nadir (~3%)
+  [7, 3232], // recovery
+  [14, 3450],
+  [30, 4187],
+  [45, 4700],
+  [60, 5131],
+  [75, 5550],
+  [90, 5845],
+  [105, 6140],
+  [120, 6421],
+  [135, 6670],
+  [150, 6918],
+  [165, 7150],
+  [180, 7369],
+];
+
+function interpolateWHO(day: number, ref: WHORef): number {
   if (day <= ref[0][0]) return ref[0][1];
   if (day >= ref[ref.length - 1][0]) return ref[ref.length - 1][1];
   for (let i = 0; i < ref.length - 1; i++) {
@@ -83,12 +102,11 @@ interface ScheduleRow {
   weekNum: number;
 }
 
-function generateWeightData(input: BabyInput): WeightRow[] {
+function generateWeightData(input: BabyInput, whoRef: WHORef): WeightRow[] {
   const data: WeightRow[] = [];
-  // WHO基準を出生体重で比例スケーリング
-  const scaleFactor = input.birthWeight / 3300;
+  const whoBirthWeight = whoRef[0][1];
+  const scaleFactor = input.birthWeight / whoBirthWeight;
 
-  // 実績の1日あたり体重増加(g)
   const actualDailyGain =
     (input.currentWeight - input.birthWeight) / input.currentDay;
 
@@ -97,31 +115,18 @@ function generateWeightData(input: BabyInput): WeightRow[] {
     date.setDate(date.getDate() + day);
     const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
 
-    // WHO推定体重: WHO 50th percentile をスケーリング
-    const whoEstimate = Math.round(interpolateWHO(day) * scaleFactor);
+    const whoEstimate = Math.round(interpolateWHO(day, whoRef) * scaleFactor);
 
-    // 実績・予測
     let actualWeight: number;
     if (day <= input.currentDay) {
-      // 過去: 出生体重 → 現在体重を線形補間
       const t = day / input.currentDay;
       actualWeight = input.birthWeight + t * (input.currentWeight - input.birthWeight);
     } else {
-      // 将来: WHO曲線の形状に沿った予測
-      // 今日時点のWHO日増加量 vs 将来のWHO日増加量の比率で減衰
-      const whoToday = interpolateWHO(input.currentDay) * scaleFactor;
-      const whoTomorrow = interpolateWHO(input.currentDay + 1) * scaleFactor;
+      const whoToday = interpolateWHO(input.currentDay, whoRef) * scaleFactor;
+      const whoTomorrow = interpolateWHO(input.currentDay + 1, whoRef) * scaleFactor;
       const whoDailyGainAtToday = whoTomorrow - whoToday;
-      const whoAtDay = interpolateWHO(day) * scaleFactor;
-      const whoAtDayPrev = interpolateWHO(day - 1) * scaleFactor;
-      const whoDailyGainAtDay = whoAtDay - whoAtDayPrev;
-      const decayRatio =
-        whoDailyGainAtToday > 0
-          ? whoDailyGainAtDay / whoDailyGainAtToday
-          : 1;
-      const projectedDailyGain = actualDailyGain * Math.max(0, decayRatio);
+      const whoAtDay = interpolateWHO(day, whoRef) * scaleFactor;
       const daysFromNow = day - input.currentDay;
-      // 累積: 各日のgainを足す（簡易的にdecayRatioの平均を使用）
       const avgDecay =
         whoDailyGainAtToday > 0
           ? ((whoAtDay - whoToday) / (daysFromNow * whoDailyGainAtToday))
@@ -504,6 +509,7 @@ export default function BabyFeedingChart() {
   const [birthDateStr, setBirthDateStr] = useState("");
   const [birthWeightStr, setBirthWeightStr] = useState("");
   const [currentWeightStr, setCurrentWeightStr] = useState("");
+  const [sex, setSex] = useState<"boy" | "girl">("boy");
   const [feedCountStr, setFeedCountStr] = useState("8");
   const feedCount = parseInt(feedCountStr, 10) || 8;
   const [submitted, setSubmitted] = useState(false);
@@ -538,8 +544,11 @@ export default function BabyFeedingChart() {
   const [scheduleRange, setScheduleRange] = useState("week0");
 
   const weightData = useMemo(
-    () => (babyInput ? generateWeightData(babyInput) : []),
-    [babyInput]
+    () => {
+      const whoRef = sex === "boy" ? WHO_BOYS : WHO_GIRLS;
+      return babyInput ? generateWeightData(babyInput, whoRef) : [];
+    },
+    [babyInput, sex]
   );
   const feedingData = useMemo(() => generateFeedingData(feedCount), [feedCount]);
   const scheduleData = useMemo(
@@ -768,6 +777,28 @@ export default function BabyFeedingChart() {
                 style={{ ...inputStyle, borderColor: errors.currentWeight ? "#dc2626" : "#cbd5e1" }}
               />
               {errors.currentWeight && <div style={errStyle}>{errors.currentWeight}</div>}
+            </div>
+            <div>
+              <label style={labelStyle}>性別</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                {([["boy", "男の子"], ["girl", "女の子"]] as const).map(([val, label]) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => { setSex(val); setSubmitted(false); }}
+                    style={{
+                      ...inputStyle,
+                      cursor: "pointer",
+                      textAlign: "center" as const,
+                      background: sex === val ? (val === "boy" ? "#eff6ff" : "#fdf2f8") : "#fff",
+                      borderColor: sex === val ? (val === "boy" ? "#2563eb" : "#ec4899") : "#cbd5e1",
+                      color: sex === val ? (val === "boy" ? "#2563eb" : "#ec4899") : "#64748b",
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
             <div>
               <label style={labelStyle}>授乳回数/日</label>
