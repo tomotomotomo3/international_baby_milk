@@ -36,10 +36,17 @@ interface WeightRow {
 // https://www.who.int/tools/child-growth-standards/standards/weight-for-age
 type WHORef = readonly (readonly [number, number])[];
 
+// 生理的体重減少: 生後2~3日で5~7%減少、7~10日で出生体重に回復
+// WHO (2022) Recommendations for Care of the Preterm or LBW Infant
 const WHO_BOYS: WHORef = [
-  [0, 3346],
-  [3, 3246], // physiological nadir (~3%)
-  [7, 3346], // recovery
+  [0, 3346],   // 出生
+  [1, 3296],   // -1.5%
+  [2, 3213],   // -4%
+  [3, 3179],   // -5% (最低点)
+  [4, 3196],   // 回復開始
+  [5, 3230],
+  [7, 3313],
+  [10, 3346],  // 出生体重に回復
   [14, 3600],
   [30, 4471],
   [45, 5100],
@@ -55,9 +62,14 @@ const WHO_BOYS: WHORef = [
 ];
 
 const WHO_GIRLS: WHORef = [
-  [0, 3232],
-  [3, 3135], // physiological nadir (~3%)
-  [7, 3232], // recovery
+  [0, 3232],   // 出生
+  [1, 3184],   // -1.5%
+  [2, 3103],   // -4%
+  [3, 3070],   // -5% (最低点)
+  [4, 3086],   // 回復開始
+  [5, 3119],
+  [7, 3200],
+  [10, 3232],  // 出生体重に回復
   [14, 3450],
   [30, 4187],
   [45, 4700],
@@ -166,14 +178,25 @@ function generateFeedingData(count: number): FeedingRow[] {
   return data;
 }
 
-function generateDailySchedule(input: BabyInput): ScheduleRow[] {
+function generateDailySchedule(input: BabyInput, whoRef: WHORef): ScheduleRow[] {
   const data: ScheduleRow[] = [];
-  let weight = input.birthWeight;
+  const whoBirthWeight = whoRef[0][1];
+  const scaleFactor = input.birthWeight / whoBirthWeight;
 
   for (let day = 0; day <= 180; day++) {
+    // WHO推定体重をスケーリングして使用（生理的体重減少も含む）
+    const weight = interpolateWHO(day, whoRef) * scaleFactor;
+
+    // WHO (2011) Guidelines on Optimal Feeding of LBW Infants
+    // 段階的増量スケジュール: 20ml/kg/日ずつ増加
     let mlPerKg: number;
-    if (day === 0) mlPerKg = 60;
-    else if (day <= 7) mlPerKg = 60 + day * (100 / 7);
+    if (day <= 1) mlPerKg = 60;
+    else if (day === 2) mlPerKg = 80;
+    else if (day === 3) mlPerKg = 100;
+    else if (day === 4) mlPerKg = 120;
+    else if (day === 5) mlPerKg = 140;
+    else if (day === 6) mlPerKg = 150;
+    else if (day === 7) mlPerKg = 160;
     else if (day <= 14) mlPerKg = 160 + ((day - 7) * 20) / 7;
     else mlPerKg = 180;
     mlPerKg = Math.min(mlPerKg, 180);
@@ -195,16 +218,6 @@ function generateDailySchedule(input: BabyInput): ScheduleRow[] {
       perFeed10,
       weekNum: Math.floor(day / 7),
     });
-
-    if (day < 5) {
-      weight = weight * (1 - 0.012);
-    } else if (day < 10) {
-      weight = weight + 15;
-    } else {
-      const t = Math.max(0, day - 14) / 166;
-      const decay = 1 - t * 0.6;
-      weight = weight + (input.birthWeight / 1000) * 13 * decay;
-    }
   }
   return data;
 }
@@ -552,8 +565,11 @@ export default function BabyFeedingChart() {
   );
   const feedingData = useMemo(() => generateFeedingData(feedCount), [feedCount]);
   const scheduleData = useMemo(
-    () => (babyInput ? generateDailySchedule(babyInput) : []),
-    [babyInput]
+    () => {
+      const whoRef = sex === "boy" ? WHO_BOYS : WHO_GIRLS;
+      return babyInput ? generateDailySchedule(babyInput, whoRef) : [];
+    },
+    [babyInput, sex]
   );
 
   const tabs = [
