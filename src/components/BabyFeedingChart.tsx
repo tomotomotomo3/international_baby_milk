@@ -60,7 +60,7 @@ function generateWeightData(input: BabyInput): WeightRow[] {
   let wMid = input.birthWeight;
   let wActual = input.birthWeight;
 
-  for (let day = 0; day <= 90; day++) {
+  for (let day = 0; day <= 180; day++) {
     const date = new Date(input.birthDate);
     date.setDate(date.getDate() + day);
     const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
@@ -91,10 +91,12 @@ function generateWeightData(input: BabyInput): WeightRow[] {
           ? (day - 7) * (wActual / 1000) * input.actualGrowthRate
           : 0);
     } else {
-      wLow = wLow + (wLow / 1000) * 10;
-      wHigh = wHigh + (wHigh / 1000) * 16;
-      wMid = wMid + (wMid / 1000) * 13;
-      wActual = wActual + (wActual / 1000) * input.actualGrowthRate;
+      // 90日以降は成長速度が自然に低下 (WHO基準: 3~6ヶ月で減衰)
+      const decay = day <= 90 ? 1.0 : 1.0 - ((day - 90) / 90) * 0.25;
+      wLow = wLow + (wLow / 1000) * 10 * decay;
+      wHigh = wHigh + (wHigh / 1000) * 16 * decay;
+      wMid = wMid + (wMid / 1000) * 13 * decay;
+      wActual = wActual + (wActual / 1000) * input.actualGrowthRate * decay;
     }
 
     data.push({
@@ -113,10 +115,10 @@ function generateWeightData(input: BabyInput): WeightRow[] {
 
 function generateFeedingData(count: number): FeedingRow[] {
   const data: FeedingRow[] = [];
-  const weights = [
-    2.0, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1, 3.2,
-    3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 4.0,
-  ];
+  const weights: number[] = [];
+  for (let w = 2.0; w <= 8.0; w = Math.round((w + 0.2) * 10) / 10) {
+    weights.push(w);
+  }
   for (const w of weights) {
     const low = Math.round((w * 150) / count);
     const high = Math.round((w * 180) / count);
@@ -134,7 +136,7 @@ function generateDailySchedule(input: BabyInput): ScheduleRow[] {
   const data: ScheduleRow[] = [];
   let weight = input.birthWeight;
 
-  for (let day = 0; day <= 90; day++) {
+  for (let day = 0; day <= 180; day++) {
     let mlPerKg: number;
     if (day === 0) mlPerKg = 60;
     else if (day <= 7) mlPerKg = 60 + day * (100 / 7);
@@ -165,7 +167,8 @@ function generateDailySchedule(input: BabyInput): ScheduleRow[] {
     } else if (day < 10) {
       weight = weight + 15;
     } else {
-      weight = weight + (weight / 1000) * 13;
+      const decay = day <= 90 ? 1.0 : 1.0 - ((day - 90) / 90) * 0.25;
+      weight = weight + (weight / 1000) * 13 * decay;
     }
   }
   return data;
@@ -214,6 +217,196 @@ function CustomTooltip({
       ))}
     </div>
   );
+}
+
+interface AdviceItem {
+  icon: string;
+  title: string;
+  message: string;
+  detail: string;
+  tone: "positive" | "neutral" | "caution" | "info";
+  evidence: string;
+}
+
+function generateAdvice(input: BabyInput, feedCount: number): AdviceItem[] {
+  const items: AdviceItem[] = [];
+  const rate = input.actualGrowthRate;
+  const day = input.currentDay;
+  const mlPerKgDay = 180; // WHO upper
+  const isLBW = input.birthWeight < 2500;
+
+  // --- 日齢別の特別アドバイス ---
+  if (day <= 5) {
+    items.push({
+      icon: "(*)",
+      title: "生まれたばかりの時期です",
+      message:
+        "生後数日は生理的体重減少といって、赤ちゃんの体重が少し減るのは自然なことです。出生体重の5~7%ほど減ることがあります。",
+      detail:
+        "これは余分な水分が排出されるためで、心配しなくて大丈夫です。まだ母乳やミルクに慣れ始めたばかりなので、少しずつ授乳のリズムを作っていきましょう。",
+      tone: "info",
+      evidence:
+        "WHO (2022) Recommendations for Care of the Preterm or LBW Infant: 生後3~5日で最大の生理的体重減少が起こるのは正常な経過",
+    });
+  } else if (day <= 14) {
+    items.push({
+      icon: "(*)",
+      title: "体重回復の時期です",
+      message:
+        "生後1~2週間は、生理的体重減少から回復する大切な時期です。少しずつ体重が戻ってきているはずです。",
+      detail:
+        "多くの赤ちゃんは生後10~14日で出生体重に戻ります。焦らず、赤ちゃんのペースを見守ってあげてくださいね。",
+      tone: "info",
+      evidence:
+        "WHO (2011) Guidelines on Optimal Feeding of LBW Infants: 出生体重への回復は通常10~14日で達成される",
+    });
+  }
+
+  // --- 体重増加速度のアドバイス ---
+  if (day > 7) {
+    if (rate < 8) {
+      items.push({
+        icon: "(!)",
+        title: "体重の増え方がゆっくりめです",
+        message: `現在の体重増加速度は${rate.toFixed(1)}g/kg/日で、WHO基準の目安(10~16g/kg/日)より少しゆっくりです。`,
+        detail:
+          "赤ちゃんにはそれぞれ成長のペースがあります。ただ、もう少し授乳量を増やしてみたり、授乳回数を増やしてみることで改善することもあります。次の健診で相談してみてくださいね。",
+        tone: "caution",
+        evidence:
+          "WHO (2011) Guidelines on Optimal Feeding of LBW Infants: 出生体重回復後の推奨体重増加速度は10~16g/kg/日",
+      });
+    } else if (rate < 10) {
+      items.push({
+        icon: "(!)",
+        title: "もう少し体重が増えるといいかも",
+        message: `現在${rate.toFixed(1)}g/kg/日のペースで、WHO基準の下限(10g/kg/日)に近い状態です。`,
+        detail:
+          "少しだけゆっくりめの成長ペースですが、赤ちゃんが元気で機嫌よく過ごしているなら大きな心配はいりません。授乳量を少し増やしてみるのもいいかもしれません。",
+        tone: "caution",
+        evidence:
+          "WHO (2011): 10g/kg/日を下回る場合は授乳量の見直しと経過観察を推奨",
+      });
+    } else if (rate <= 13) {
+      items.push({
+        icon: "(*)",
+        title: "とても順調に育っています",
+        message: `体重増加速度${rate.toFixed(1)}g/kg/日は、WHOの推奨範囲のちょうど真ん中あたりです。`,
+        detail:
+          "今の授乳ペースがとてもよい感じです。赤ちゃんもしっかり栄養を吸収できているようですね。このまま続けていきましょう。",
+        tone: "positive",
+        evidence:
+          "WHO (2011): LBW児の理想的な体重増加速度は約13g/kg/日(範囲: 10~16g/kg/日)",
+      });
+    } else if (rate <= 16) {
+      items.push({
+        icon: "(*)",
+        title: "しっかり大きくなっています",
+        message: `体重増加速度${rate.toFixed(1)}g/kg/日は、WHO推奨範囲の上のほうです。`,
+        detail:
+          "元気にすくすく育っていますね。成長が早めですが、WHO基準の範囲内なので安心してください。赤ちゃんがお腹いっぱいのサインを出していないか見てあげてくださいね。",
+        tone: "positive",
+        evidence:
+          "WHO (2011): 16g/kg/日はWHO推奨範囲の上限で、正常な成長速度",
+      });
+    } else if (rate <= 20) {
+      items.push({
+        icon: "(!)",
+        title: "成長ペースが少し早めです",
+        message: `体重増加速度${rate.toFixed(1)}g/kg/日は、WHO推奨上限(16g/kg/日)を少し超えています。`,
+        detail:
+          "赤ちゃんがとても元気に育っている証拠でもあります。ただ、吐き戻しが多かったり、お腹が張って苦しそうな様子があれば、1回の授乳量を少し減らして回数を増やす方法もあります。次の健診で先生に相談してみてくださいね。",
+        tone: "neutral",
+        evidence:
+          "WHO (2022): 急速な体重増加は過栄養のリスクがあるが、キャッチアップ成長の場合もある。消化器症状の有無で判断",
+      });
+    } else {
+      items.push({
+        icon: "(!)",
+        title: "かなり早いペースで大きくなっています",
+        message: `体重増加速度${rate.toFixed(1)}g/kg/日は、WHO推奨上限(16g/kg/日)の${(rate / 16).toFixed(1)}倍です。`,
+        detail:
+          "赤ちゃんの食欲が旺盛なのは素晴らしいことです。ただ、急激な体重増加は赤ちゃんの消化器官に負担がかかることがあります。吐き戻し、お腹の張り、不機嫌などがないか観察してみてください。次の受診時に授乳量について相談するのがおすすめです。",
+        tone: "caution",
+        evidence:
+          "WHO (2022) Recommendations for Care of the Preterm or LBW Infant: 過度な体重増加は長期的な肥満リスクとの関連が報告されている (Singhal et al, Lancet 2004)",
+      });
+    }
+  }
+
+  // --- 授乳量に関するアドバイス ---
+  const currentMlPerKg =
+    ((input.currentWeight / 1000) * mlPerKgDay) /
+    (input.currentWeight / 1000);
+  const totalPerDay150 = (input.currentWeight / 1000) * 150;
+  const totalPerDay180 = (input.currentWeight / 1000) * 180;
+  const perFeedLow = Math.round(totalPerDay150 / feedCount);
+  const perFeedHigh = Math.round(totalPerDay180 / feedCount);
+
+  items.push({
+    icon: "(*)",
+    title: "今日の授乳量の目安",
+    message: `WHO基準では、1回あたり${perFeedLow}~${perFeedHigh}ml(${feedCount}回/日)が目安です。`,
+    detail: `1日の合計は${Math.round(totalPerDay150)}~${Math.round(totalPerDay180)}mlになります。赤ちゃんの様子を見ながら、この範囲を参考にしてみてくださいね。あくまで目安なので、赤ちゃんが満足して眠れていれば大丈夫です。`,
+    tone: "info",
+    evidence:
+      "WHO (2011) Guidelines on Optimal Feeding of LBW Infants: 安定期の推奨摂取量は150~180ml/kg/日",
+  });
+
+  // --- 授乳回数に関するアドバイス ---
+  if (feedCount < 6) {
+    items.push({
+      icon: "(!)",
+      title: "授乳回数を増やしてみましょう",
+      message: `現在の授乳回数は${feedCount}回/日です。${isLBW ? "低出生体重児の場合は特に" : ""}もう少し回数を増やすのがおすすめです。`,
+      detail:
+        "1回の量を減らして回数を増やすと、赤ちゃんの小さな胃にも優しく、消化もしやすくなります。8~12回/日が一般的な目安です。",
+      tone: "caution",
+      evidence:
+        "WHO (2009) Infant and Young Child Feeding: Model Chapter: 新生児は1日8~12回の授乳が推奨される",
+    });
+  } else if (feedCount >= 8 && feedCount <= 12) {
+    items.push({
+      icon: "(*)",
+      title: "授乳回数はちょうどよいです",
+      message: `${feedCount}回/日の授乳回数は、一般的な推奨範囲(8~12回)の中にあります。`,
+      detail:
+        "いいリズムで授乳できていますね。赤ちゃんもお腹が空きすぎず、ちょうどよいペースで栄養を摂れています。",
+      tone: "positive",
+      evidence:
+        "WHO (2009) Infant and Young Child Feeding: 新生児の推奨授乳頻度は8~12回/日",
+    });
+  }
+
+  // --- LBW特有のアドバイス ---
+  if (isLBW) {
+    items.push({
+      icon: "(*)",
+      title: "低出生体重児の成長について",
+      message: `出生体重${input.birthWeight.toLocaleString()}gは低出生体重児(LBW)に該当します。`,
+      detail:
+        "低出生体重で生まれた赤ちゃんは、キャッチアップ成長といって、しばらくの間は標準体重の赤ちゃんよりも早いペースで成長することがあります。これは自然な過程なので、焦らず見守ってあげてくださいね。定期的な健診でフォローしてもらいましょう。",
+      tone: "info",
+      evidence:
+        "WHO (2022): LBW児は適切な栄養管理下でキャッチアップ成長を示すことが多く、これは正常な発達過程である",
+    });
+  }
+
+  // --- 赤ちゃんの満腹サインのアドバイス ---
+  if (rate > 14 || feedCount > 10) {
+    items.push({
+      icon: "(*)",
+      title: "赤ちゃんの「お腹いっぱい」サイン",
+      message:
+        "授乳中の赤ちゃんの様子を観察してみましょう。",
+      detail:
+        "お腹がいっぱいになると、赤ちゃんは口を閉じる、顔をそむける、手を広げる、寝落ちするなどのサインを出します。泣いているのが空腹以外の理由(おむつ、眠い、抱っこしてほしい等)のこともあります。サインを見つけるのは最初は難しいですが、だんだんわかるようになりますよ。",
+      tone: "info",
+      evidence:
+        "Bergman NJ (2013) Neonatal stomach volume and physiology, Acta Paediatr: 新生児の胃容量は体重に比例し、過度な充満は吐き戻しの原因となる",
+    });
+  }
+
+  return items;
 }
 
 function Section({
@@ -328,7 +521,7 @@ export default function BabyFeedingChart() {
     { id: "weight", label: "体重推移" },
     { id: "feeding", label: "授乳量目安" },
     { id: "schedule", label: "日別スケジュール" },
-    { id: "summary", label: "医師相談用" },
+    { id: "summary", label: "サマリー" },
   ];
 
   const weekRanges = [
@@ -338,6 +531,9 @@ export default function BabyFeedingChart() {
     { id: "week6", label: "6~8週", start: 42, end: 56 },
     { id: "week8", label: "8~10週", start: 56, end: 70 },
     { id: "week10", label: "10~13週", start: 70, end: 91 },
+    { id: "week13", label: "13~17週", start: 91, end: 119 },
+    { id: "week17", label: "17~21週", start: 119, end: 147 },
+    { id: "week21", label: "21~26週", start: 147, end: 180 },
   ];
 
   const currentRange =
@@ -347,7 +543,7 @@ export default function BabyFeedingChart() {
   );
 
   const feedChartData = scheduleData.filter(
-    (d) => d.day % 3 === 0 || (babyInput && d.day === babyInput.currentDay)
+    (d) => d.day % 5 === 0 || (babyInput && d.day === babyInput.currentDay)
   );
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -363,6 +559,14 @@ export default function BabyFeedingChart() {
         errs.birthDate = "有効な日付を入力してください";
       } else if (d > new Date()) {
         errs.birthDate = "未来の日付は入力できません";
+      } else {
+        const dayAge = Math.floor(
+          (new Date().getTime() - d.getTime()) / (1000 * 60 * 60 * 24)
+        );
+        if (dayAge > 180) {
+          errs.birthDate =
+            "生後6ヶ月を超えています。このツールは生後6ヶ月までの赤ちゃんが対象です";
+        }
       }
     }
 
@@ -397,6 +601,19 @@ export default function BabyFeedingChart() {
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
     setSubmitted(true);
+
+    // 今日が含まれる週レンジを自動選択
+    const bd = new Date(birthDateStr + "T00:00:00");
+    const today = new Date();
+    const dayAge = Math.floor(
+      (today.getTime() - bd.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    const matchRange = weekRanges.find(
+      (r) => dayAge >= r.start && dayAge <= r.end
+    );
+    if (matchRange) {
+      setScheduleRange(matchRange.id);
+    }
   };
 
   const weightGain = babyInput
@@ -642,8 +859,11 @@ export default function BabyFeedingChart() {
                 >
                   {whoPerFeed.low}ml x {feedCount}回
                 </div>
-                <div style={{ fontSize: 14, color: "#64748b" }}>
-                  1日合計 {whoPerFeed.totalLow}ml (150ml/kg/日)
+                <div style={{ fontSize: 22, fontWeight: 700, color: "#15803d", margin: "4px 0" }}>
+                  1日合計 {whoPerFeed.totalLow}ml
+                </div>
+                <div style={{ fontSize: 13, color: "#64748b" }}>
+                  (150ml/kg/日)
                 </div>
               </div>
               <div
@@ -669,8 +889,11 @@ export default function BabyFeedingChart() {
                 >
                   {whoPerFeed.high}ml x {feedCount}回
                 </div>
-                <div style={{ fontSize: 14, color: "#64748b" }}>
-                  1日合計 {whoPerFeed.totalHigh}ml (180ml/kg/日)
+                <div style={{ fontSize: 22, fontWeight: 700, color: "#1d4ed8", margin: "4px 0" }}>
+                  1日合計 {whoPerFeed.totalHigh}ml
+                </div>
+                <div style={{ fontSize: 13, color: "#64748b" }}>
+                  (180ml/kg/日)
                 </div>
               </div>
             </div>
@@ -728,7 +951,7 @@ export default function BabyFeedingChart() {
                     margin: "0 0 6px",
                   }}
                 >
-                  体重推移 (0~90日)
+                  体重推移 (0~180日)
                 </h2>
                 <p
                   style={{
@@ -773,7 +996,7 @@ export default function BabyFeedingChart() {
                       stroke="#cbd5e1"
                       tick={{ fill: "#94a3b8", fontSize: 10 }}
                       tickFormatter={(v) =>
-                        v % 7 === 0 ? `${v / 7}w` : ""
+                        v % 14 === 0 ? `${v / 7}w` : ""
                       }
                     />
                     <YAxis
@@ -847,8 +1070,16 @@ export default function BabyFeedingChart() {
                     />
                     <ReferenceLine
                       x={babyInput.currentDay}
-                      stroke="#eab308"
-                      strokeDasharray="3 3"
+                      stroke="#f97316"
+                      strokeWidth={2}
+                      strokeDasharray="4 4"
+                      label={{
+                        value: "今日",
+                        position: "top",
+                        fill: "#f97316",
+                        fontWeight: 700,
+                        fontSize: 13,
+                      }}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -889,7 +1120,7 @@ export default function BabyFeedingChart() {
                       </tr>
                     </thead>
                     <tbody>
-                      {[0, 7, 14, 21, 30, 45, 60, 75, 90].map((d) => {
+                      {[0, 7, 14, 30, 60, 90, 120, 150, 180].map((d) => {
                         const row = weightData.find((r) => r.day === d);
                         if (!row) return null;
                         const diff =
@@ -1057,6 +1288,19 @@ export default function BabyFeedingChart() {
                       unit="ml"
                       radius={[3, 3, 0, 0]}
                     />
+                    <ReferenceLine
+                      x={`${(Math.round(babyInput.currentWeight / 100) / 10).toFixed(1)}kg`}
+                      stroke="#f97316"
+                      strokeWidth={2}
+                      strokeDasharray="4 4"
+                      label={{
+                        value: "現在",
+                        position: "top",
+                        fill: "#f97316",
+                        fontWeight: 700,
+                        fontSize: 13,
+                      }}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
 
@@ -1068,7 +1312,7 @@ export default function BabyFeedingChart() {
                     color: "#1e293b",
                   }}
                 >
-                  日齢別 WHO基準授乳量の推移 (0~90日)
+                  日齢別 WHO基準授乳量の推移 (0~180日)
                 </h3>
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart
@@ -1089,7 +1333,7 @@ export default function BabyFeedingChart() {
                       stroke="#cbd5e1"
                       tick={{ fill: "#94a3b8", fontSize: 10 }}
                       tickFormatter={(v) =>
-                        v % 7 === 0 ? `${v / 7}w` : ""
+                        v % 14 === 0 ? `${v / 7}w` : ""
                       }
                     />
                     <YAxis
@@ -1120,8 +1364,16 @@ export default function BabyFeedingChart() {
                     />
                     <ReferenceLine
                       x={babyInput.currentDay}
-                      stroke="#eab308"
-                      strokeDasharray="3 3"
+                      stroke="#f97316"
+                      strokeWidth={2}
+                      strokeDasharray="4 4"
+                      label={{
+                        value: "今日",
+                        position: "top",
+                        fill: "#f97316",
+                        fontWeight: 700,
+                        fontSize: 13,
+                      }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -1324,7 +1576,15 @@ export default function BabyFeedingChart() {
             )}
 
             {/* Summary */}
-            {tab === "summary" && whoPerFeed && (
+            {tab === "summary" && whoPerFeed && (() => {
+              const adviceItems = generateAdvice(babyInput, feedCount);
+              const toneStyles: Record<AdviceItem["tone"], { bg: string; border: string; titleColor: string; iconBg: string }> = {
+                positive: { bg: "#f0fdf4", border: "#bbf7d0", titleColor: "#15803d", iconBg: "#dcfce7" },
+                neutral: { bg: "#eff6ff", border: "#bfdbfe", titleColor: "#1d4ed8", iconBg: "#dbeafe" },
+                caution: { bg: "#fffbeb", border: "#fde68a", titleColor: "#b45309", iconBg: "#fef3c7" },
+                info: { bg: "#f8fafc", border: "#e2e8f0", titleColor: "#475569", iconBg: "#f1f5f9" },
+              };
+              return (
               <div
                 style={{
                   background: "#fff",
@@ -1338,204 +1598,235 @@ export default function BabyFeedingChart() {
                   style={{
                     fontSize: 21,
                     fontWeight: 800,
-                    margin: "0 0 20px",
+                    margin: "0 0 8px",
                   }}
                 >
-                  医師相談用サマリー
+                  赤ちゃんの成長サマリー
                 </h2>
-
-                <Section
-                  title="患児情報"
-                  color="#2563eb"
-                  bg="#eff6ff"
-                  border="#bfdbfe"
+                <p
+                  style={{
+                    fontSize: 14,
+                    color: "#64748b",
+                    margin: "0 0 24px",
+                    lineHeight: 1.6,
+                  }}
                 >
-                  出生日: {formatDate(babyInput.birthDate)} / 出生体重:{" "}
-                  {babyInput.birthWeight.toLocaleString()}g
-                  {babyInput.birthWeight < 2500 ? " (低出生体重児)" : ""}
-                  <br />
-                  現在: 生後{babyInput.currentDay}日目 / 現在体重:{" "}
-                  {babyInput.currentWeight.toLocaleString()}g
-                  <br />
-                  体重増加: +{weightGain}g / 推定速度: 約
-                  {babyInput.actualGrowthRate.toFixed(1)} g/kg/日 ({dailyGain}
-                  g/日)
-                  {babyInput.actualGrowthRate > 16 &&
-                    ` -> WHO上限の${(babyInput.actualGrowthRate / 16).toFixed(1)}倍`}
-                </Section>
+                  WHO国際基準に基づいて、赤ちゃんの成長状態をやさしくお伝えします。
+                </p>
 
-                <Section
-                  title="WHO基準の授乳量 (現在体重ベース)"
-                  color="#16a34a"
-                  bg="#f0fdf4"
-                  border="#bbf7d0"
-                >
-                  <div className="summary-compare-grid">
-                    <div
-                      style={{
-                        background: "#fff",
-                        borderRadius: 8,
-                        padding: 14,
-                        border: "1px solid #bbf7d0",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: "#16a34a",
-                          fontWeight: 700,
-                        }}
-                      >
-                        最低 (150ml/kg/日)
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 26,
-                          fontWeight: 800,
-                          color: "#15803d",
-                          margin: "6px 0",
-                        }}
-                      >
-                        {whoPerFeed.low}ml x {feedCount}回
-                      </div>
-                      <div style={{ fontSize: 12, color: "#64748b" }}>
-                        {whoPerFeed.totalLow}ml/日
-                      </div>
-                    </div>
-                    <div
-                      style={{
-                        background: "#fff",
-                        borderRadius: 8,
-                        padding: 14,
-                        border: "1px solid #bfdbfe",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: "#2563eb",
-                          fontWeight: 700,
-                        }}
-                      >
-                        最高 (180ml/kg/日)
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 26,
-                          fontWeight: 800,
-                          color: "#1d4ed8",
-                          margin: "6px 0",
-                        }}
-                      >
-                        {whoPerFeed.high}ml x {feedCount}回
-                      </div>
-                      <div style={{ fontSize: 12, color: "#64748b" }}>
-                        {whoPerFeed.totalHigh}ml/日
-                      </div>
-                    </div>
-                  </div>
-                </Section>
-
-                <Section
-                  title="懸念チェックリスト"
-                  color="#ca8a04"
-                  bg="#fefce8"
-                  border="#fef08a"
-                >
-                  {babyInput.actualGrowthRate > 16 && (
-                    <>
-                      - 体重増加速度{" "}
-                      {babyInput.actualGrowthRate.toFixed(1)}g/kg/日 -&gt;
-                      WHO上限16g/kg/日の
-                      {(babyInput.actualGrowthRate / 16).toFixed(1)}倍
-                      <br />
-                    </>
-                  )}
-                  {babyInput.actualGrowthRate < 10 && (
-                    <>
-                      - 体重増加速度{" "}
-                      {babyInput.actualGrowthRate.toFixed(1)}g/kg/日 -&gt;
-                      WHO下限10g/kg/日を下回っています
-                      <br />
-                    </>
-                  )}
-                  {babyInput.birthWeight < 2500 && (
-                    <>
-                      - 低出生体重児 (LBW): 体重ベースの授乳量管理が重要
-                      <br />
-                    </>
-                  )}
-                  - WHO基準の授乳量: {whoPerFeed.low}~{whoPerFeed.high}ml x
-                  {feedCount}回/日 ({whoPerFeed.totalLow}~{whoPerFeed.totalHigh}ml/日)
-                </Section>
-
-                <Section
-                  title="医師にご確認いただきたいこと"
-                  color="#16a34a"
-                  bg="#f0fdf4"
-                  border="#bbf7d0"
-                >
-                  1. WHO基準 (150~180ml/kg/日)
-                  に基づく適切な授乳量
-                  <br />
-                  2. 現在の体重増加速度{" "}
-                  {babyInput.actualGrowthRate.toFixed(1)}g/kg/日に対する評価
-                  <br />
-                  3. 吐き戻し・ガス・不機嫌等の消化器症状との関連
-                  <br />
-                  4. 長期フォローアップの方針
-                </Section>
-
-                <Section
-                  title="参考文献"
-                  color="#64748b"
-                  bg="#f8fafc"
-                  border="#e2e8f0"
+                {/* 基本情報カード */}
+                <div
+                  style={{
+                    background: "#f8fafc",
+                    borderRadius: 12,
+                    padding: 20,
+                    marginBottom: 24,
+                    border: "1px solid #e2e8f0",
+                  }}
                 >
                   <div
                     style={{
-                      fontSize: 12,
-                      color: "#64748b",
-                      lineHeight: 2,
+                      fontSize: 14,
+                      fontWeight: 700,
+                      color: "#475569",
+                      marginBottom: 12,
                     }}
                   >
-                    - WHO (2011) Guidelines on Optimal Feeding of LBW
-                    Infants. ISBN: 9789241548366
-                    <br />
-                    - WHO (2022) Recommendations for Care of the Preterm or
-                    LBW Infant. ISBN: 9789240058262
-                    <br />
-                    - WHO (2009) Infant and Young Child Feeding: Model
-                    Chapter. Table 7/8
-                    <br />
-                    - Bergman NJ (2013) Neonatal stomach volume and
-                    physiology. Acta Paediatr 102:773-777
-                    <br />- Naveed et al (2008) Anatomic stomach capacity at
-                    autopsy. J Hum Lact
+                    現在の状態
                   </div>
-                </Section>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: 12,
+                    }}
+                  >
+                    {[
+                      { label: "生後", value: `${babyInput.currentDay}日目` },
+                      { label: "体重増加", value: `+${weightGain}g` },
+                      {
+                        label: "増加ペース",
+                        value: `${babyInput.actualGrowthRate.toFixed(1)}g/kg/日`,
+                      },
+                      {
+                        label: "WHO目安",
+                        value: "10~16g/kg/日",
+                      },
+                    ].map((item) => (
+                      <div key={item.label}>
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: "#94a3b8",
+                            marginBottom: 2,
+                          }}
+                        >
+                          {item.label}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 16,
+                            fontWeight: 700,
+                            color: "#1e293b",
+                          }}
+                        >
+                          {item.value}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
+                {/* アドバイスカード */}
+                {adviceItems.map((item, idx) => {
+                  const style = toneStyles[item.tone];
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        background: style.bg,
+                        borderRadius: 12,
+                        padding: 20,
+                        marginBottom: 16,
+                        border: `1px solid ${style.border}`,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          marginBottom: 10,
+                        }}
+                      >
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: 32,
+                            height: 32,
+                            borderRadius: "50%",
+                            background: style.iconBg,
+                            fontSize: 14,
+                            fontWeight: 800,
+                            color: style.titleColor,
+                            flexShrink: 0,
+                          }}
+                        >
+                          {item.icon}
+                        </span>
+                        <h3
+                          style={{
+                            fontSize: 16,
+                            fontWeight: 700,
+                            color: style.titleColor,
+                            margin: 0,
+                          }}
+                        >
+                          {item.title}
+                        </h3>
+                      </div>
+                      <p
+                        style={{
+                          fontSize: 15,
+                          color: "#1e293b",
+                          margin: "0 0 8px",
+                          lineHeight: 1.7,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {item.message}
+                      </p>
+                      <p
+                        style={{
+                          fontSize: 14,
+                          color: "#475569",
+                          margin: "0 0 12px",
+                          lineHeight: 1.7,
+                        }}
+                      >
+                        {item.detail}
+                      </p>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: "#94a3b8",
+                          borderTop: `1px solid ${style.border}`,
+                          paddingTop: 8,
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        [根拠] {item.evidence}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* 参考文献 */}
                 <div
                   style={{
-                    marginTop: 16,
-                    padding: 14,
-                    borderRadius: 8,
-                    fontSize: 13,
-                    color: "#64748b",
-                    textAlign: "center",
-                    lineHeight: 1.8,
-                    border: "1px solid #e2e8f0",
+                    marginTop: 8,
+                    padding: 16,
+                    borderRadius: 10,
                     background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
                   }}
                 >
-                  ※この資料はWHO公式ガイドラインに基づく参考情報です。
-                  <br />
-                  具体的な授乳量の変更は必ず担当医師の指示のもとで行ってください。
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "#64748b",
+                      marginBottom: 8,
+                    }}
+                  >
+                    参考文献
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: "#94a3b8",
+                      lineHeight: 1.8,
+                    }}
+                  >
+                    - WHO (2011) Guidelines on Optimal Feeding of Low-Birth-Weight Infants. ISBN: 9789241548366
+                    <br />
+                    - WHO (2022) Recommendations for Care of the Preterm or Low-Birth-Weight Infant. ISBN: 9789240058262
+                    <br />
+                    - WHO (2009) Infant and Young Child Feeding: Model Chapter. Table 7/8
+                    <br />
+                    - Bergman NJ (2013) Neonatal stomach volume and physiology. Acta Paediatr 102:773-777
+                    <br />
+                    - Singhal A et al (2004) Early nutrition and leptin concentrations in later life. Am J Clin Nutr
+                  </div>
                 </div>
+
               </div>
-            )}
+              );
+            })()}
           </>
         )}
+
+        {/* Footer */}
+        <div
+          style={{
+            marginTop: 32,
+            padding: "20px 24px",
+            borderRadius: 12,
+            fontSize: 13,
+            color: "#94a3b8",
+            textAlign: "center",
+            lineHeight: 1.8,
+            border: "1px solid #e2e8f0",
+            background: "#fff",
+          }}
+        >
+          ※本サイトはWHO公式ガイドラインに基づく参考情報として作成しておりますが、
+          表示される数値はすべて推定値です。
+          <br />
+          実際の授乳量や体重管理については、担当医にご相談の上、参考としてご使用ください。
+        </div>
       </div>
     </div>
   );
