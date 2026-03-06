@@ -188,11 +188,11 @@ function CustomTooltip({
   return (
     <div
       style={{
-        background: "rgba(15,23,42,0.95)",
-        padding: "12px 16px",
+        background: "#fff",
+        padding: "14px 18px",
         borderRadius: 8,
-        border: "1px solid rgba(255,255,255,0.1)",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+        border: "1px solid #e2e8f0",
+        boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
       }}
     >
       {payload.map((p, i) => (
@@ -200,7 +200,7 @@ function CustomTooltip({
           key={i}
           style={{
             color: p.color,
-            fontSize: 13,
+            fontSize: 15,
             margin: "2px 0",
             fontWeight: 600,
           }}
@@ -231,7 +231,7 @@ function Section({
     <div style={{ marginBottom: 20 }}>
       <h3
         style={{
-          fontSize: 13,
+          fontSize: 15,
           color,
           fontWeight: 700,
           marginBottom: 8,
@@ -247,8 +247,8 @@ function Section({
           padding: 16,
           border: `1px solid ${border}`,
           lineHeight: 1.9,
-          fontSize: 12,
-          color: "#cbd5e1",
+          fontSize: 14,
+          color: "#334155",
         }}
       >
         {children}
@@ -367,20 +367,20 @@ export default function BabyFeedingChart() {
     : null;
 
   const inputStyle = {
-    padding: "10px 14px",
+    padding: "12px 16px",
     borderRadius: 8,
-    border: "1px solid rgba(255,255,255,0.15)",
-    background: "rgba(255,255,255,0.06)",
-    color: "#f1f5f9",
-    fontSize: 14,
+    border: "1px solid #cbd5e1",
+    background: "#fff",
+    color: "#1e293b",
+    fontSize: 16,
     fontWeight: 600,
     width: "100%",
     outline: "none",
   } as const;
 
   const labelStyle = {
-    fontSize: 11,
-    color: "#94a3b8",
+    fontSize: 13,
+    color: "#64748b",
     fontWeight: 700,
     marginBottom: 6,
     display: "block",
@@ -391,8 +391,8 @@ export default function BabyFeedingChart() {
     <div
       style={{
         fontFamily: "'Noto Sans JP', 'Hiragino Sans', sans-serif",
-        background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
-        color: "#e2e8f0",
+        background: "#f8fafc",
+        color: "#1e293b",
         minHeight: "100vh",
         padding: "24px 16px",
       }}
@@ -401,22 +401,20 @@ export default function BabyFeedingChart() {
         {/* Header */}
         <div
           style={{
-            background: "linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%)",
+            background: "#fff",
             borderRadius: 16,
             padding: "24px 28px",
             marginBottom: 20,
-            border: "1px solid rgba(59,130,246,0.3)",
-            boxShadow: "0 4px 24px rgba(0,0,0,0.3)",
+            border: "1px solid #e2e8f0",
+            boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
           }}
         >
           <h1
             style={{
-              fontSize: 20,
+              fontSize: 24,
               fontWeight: 800,
               margin: "0 0 16px",
-              background: "linear-gradient(90deg, #60a5fa, #34d399)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
+              color: "#1e293b",
             }}
           >
             WHO国際基準に基づく授乳・体重管理ガイド
@@ -441,10 +439,7 @@ export default function BabyFeedingChart() {
                   setSubmitted(false);
                 }}
                 max={toDateInputValue(new Date())}
-                style={{
-                  ...inputStyle,
-                  colorScheme: "dark",
-                }}
+                style={inputStyle}
               />
             </div>
             <div>
@@ -477,16 +472,16 @@ export default function BabyFeedingChart() {
               type="button"
               onClick={handleSubmit}
               style={{
-                padding: "10px 24px",
+                padding: "12px 28px",
                 borderRadius: 10,
                 border: "none",
                 cursor: "pointer",
-                fontSize: 14,
+                fontSize: 16,
                 fontWeight: 700,
-                background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+                background: "#2563eb",
                 color: "#fff",
-                boxShadow: "0 4px 12px rgba(59,130,246,0.3)",
-                height: 42,
+                boxShadow: "0 2px 8px rgba(37,99,235,0.2)",
+                height: 46,
               }}
             >
               表示
@@ -502,7 +497,7 @@ export default function BabyFeedingChart() {
                 gap: 20,
                 marginTop: 16,
                 paddingTop: 16,
-                borderTop: "1px solid rgba(255,255,255,0.08)",
+                borderTop: "1px solid #e2e8f0",
               }}
             >
               {(
@@ -526,8 +521,8 @@ export default function BabyFeedingChart() {
                 <div key={k}>
                   <div
                     style={{
-                      fontSize: 10,
-                      color: "#64748b",
+                      fontSize: 12,
+                      color: "#94a3b8",
                       letterSpacing: 1,
                     }}
                   >
@@ -535,9 +530,9 @@ export default function BabyFeedingChart() {
                   </div>
                   <div
                     style={{
-                      fontSize: 14,
+                      fontSize: 16,
                       fontWeight: 700,
-                      color: "#f1f5f9",
+                      color: "#1e293b",
                     }}
                   >
                     {v}
@@ -556,61 +551,61 @@ export default function BabyFeedingChart() {
                 gap: 12,
                 marginTop: 16,
                 paddingTop: 16,
-                borderTop: "1px solid rgba(255,255,255,0.08)",
+                borderTop: "1px solid #e2e8f0",
               }}
             >
               <div
                 style={{
-                  background: "rgba(34,211,153,0.08)",
+                  background: "#f0fdf4",
                   borderRadius: 10,
                   padding: "14px 18px",
-                  border: "1px solid rgba(34,211,153,0.2)",
+                  border: "1px solid #bbf7d0",
                 }}
               >
                 <div
-                  style={{ fontSize: 10, color: "#6ee7b7", fontWeight: 700 }}
+                  style={{ fontSize: 13, color: "#16a34a", fontWeight: 700 }}
                 >
-                  今日のミルク目安 (WHO 150ml/kg/日)
+                  今日のミルク目安 (最低)
                 </div>
                 <div
                   style={{
-                    fontSize: 24,
+                    fontSize: 28,
                     fontWeight: 800,
-                    color: "#34d399",
+                    color: "#15803d",
                     margin: "4px 0",
                   }}
                 >
                   {whoPerFeed.low}ml x 8回
                 </div>
-                <div style={{ fontSize: 11, color: "#94a3b8" }}>
-                  1日合計 {whoPerFeed.totalLow}ml
+                <div style={{ fontSize: 14, color: "#64748b" }}>
+                  1日合計 {whoPerFeed.totalLow}ml (150ml/kg/日)
                 </div>
               </div>
               <div
                 style={{
-                  background: "rgba(34,211,238,0.08)",
+                  background: "#eff6ff",
                   borderRadius: 10,
                   padding: "14px 18px",
-                  border: "1px solid rgba(34,211,238,0.2)",
+                  border: "1px solid #bfdbfe",
                 }}
               >
                 <div
-                  style={{ fontSize: 10, color: "#67e8f9", fontWeight: 700 }}
+                  style={{ fontSize: 13, color: "#2563eb", fontWeight: 700 }}
                 >
-                  今日のミルク目安 (WHO 180ml/kg/日)
+                  今日のミルク目安 (最高)
                 </div>
                 <div
                   style={{
-                    fontSize: 24,
+                    fontSize: 28,
                     fontWeight: 800,
-                    color: "#22d3ee",
+                    color: "#1d4ed8",
                     margin: "4px 0",
                   }}
                 >
                   {whoPerFeed.high}ml x 8回
                 </div>
-                <div style={{ fontSize: 11, color: "#94a3b8" }}>
-                  1日合計 {whoPerFeed.totalHigh}ml
+                <div style={{ fontSize: 14, color: "#64748b" }}>
+                  1日合計 {whoPerFeed.totalHigh}ml (180ml/kg/日)
                 </div>
               </div>
             </div>
@@ -634,20 +629,18 @@ export default function BabyFeedingChart() {
                   key={t.id}
                   onClick={() => setTab(t.id)}
                   style={{
-                    padding: "10px 16px",
+                    padding: "12px 20px",
                     borderRadius: 10,
                     border: "none",
                     cursor: "pointer",
-                    fontSize: 13,
+                    fontSize: 15,
                     fontWeight: 700,
                     background:
-                      tab === t.id
-                        ? "linear-gradient(135deg, #3b82f6, #2563eb)"
-                        : "rgba(255,255,255,0.06)",
-                    color: tab === t.id ? "#fff" : "#94a3b8",
+                      tab === t.id ? "#2563eb" : "#e2e8f0",
+                    color: tab === t.id ? "#fff" : "#64748b",
                     boxShadow:
                       tab === t.id
-                        ? "0 4px 12px rgba(59,130,246,0.3)"
+                        ? "0 2px 8px rgba(37,99,235,0.2)"
                         : "none",
                   }}
                 >
@@ -660,25 +653,26 @@ export default function BabyFeedingChart() {
             {tab === "weight" && (
               <div
                 style={{
-                  background: "rgba(255,255,255,0.03)",
+                  background: "#fff",
                   borderRadius: 16,
                   padding: 24,
-                  border: "1px solid rgba(255,255,255,0.06)",
+                  border: "1px solid #e2e8f0",
+                  boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
                 }}
               >
                 <h2
                   style={{
-                    fontSize: 16,
+                    fontSize: 19,
                     fontWeight: 700,
-                    margin: "0 0 4px",
+                    margin: "0 0 6px",
                   }}
                 >
                   体重推移 (0~90日)
                 </h2>
                 <p
                   style={{
-                    fontSize: 11,
-                    color: "#64748b",
+                    fontSize: 13,
+                    color: "#94a3b8",
                     margin: "0 0 20px",
                   }}
                 >
@@ -699,40 +693,41 @@ export default function BabyFeedingChart() {
                       >
                         <stop
                           offset="0%"
-                          stopColor="#34d399"
-                          stopOpacity={0.25}
+                          stopColor="#22c55e"
+                          stopOpacity={0.15}
                         />
                         <stop
                           offset="100%"
-                          stopColor="#34d399"
-                          stopOpacity={0.03}
+                          stopColor="#22c55e"
+                          stopOpacity={0.02}
                         />
                       </linearGradient>
                     </defs>
                     <CartesianGrid
                       strokeDasharray="3 3"
-                      stroke="rgba(255,255,255,0.06)"
+                      stroke="#e2e8f0"
                     />
                     <XAxis
                       dataKey="day"
-                      stroke="#475569"
-                      tick={{ fill: "#64748b", fontSize: 10 }}
+                      stroke="#cbd5e1"
+                      tick={{ fill: "#94a3b8", fontSize: 10 }}
                       tickFormatter={(v) =>
                         v % 7 === 0 ? `${v / 7}w` : ""
                       }
                     />
                     <YAxis
-                      stroke="#475569"
-                      tick={{ fill: "#64748b", fontSize: 10 }}
+                      stroke="#cbd5e1"
+                      tick={{ fill: "#94a3b8", fontSize: 10 }}
                       domain={[
-                        (dataMin: number) => Math.floor(dataMin / 100) * 100 - 100,
+                        (dataMin: number) =>
+                          Math.floor(dataMin / 100) * 100 - 100,
                         "auto",
                       ]}
                       tickFormatter={(v) => `${(v / 1000).toFixed(1)}kg`}
                     />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend
-                      wrapperStyle={{ fontSize: 11, paddingTop: 10 }}
+                      wrapperStyle={{ fontSize: 13, paddingTop: 10 }}
                     />
                     <Area
                       type="monotone"
@@ -744,7 +739,7 @@ export default function BabyFeedingChart() {
                     <Line
                       type="monotone"
                       dataKey="whoHigh"
-                      stroke="#34d399"
+                      stroke="#22c55e"
                       strokeWidth={1.5}
                       dot={false}
                       name="WHO上限(16g/kg/日)"
@@ -754,7 +749,7 @@ export default function BabyFeedingChart() {
                     <Line
                       type="monotone"
                       dataKey="whoMid"
-                      stroke="#22d3ee"
+                      stroke="#0ea5e9"
                       strokeWidth={2}
                       dot={false}
                       name="WHO中央値(13g/kg/日)"
@@ -763,7 +758,7 @@ export default function BabyFeedingChart() {
                     <Line
                       type="monotone"
                       dataKey="whoLow"
-                      stroke="#34d399"
+                      stroke="#22c55e"
                       strokeWidth={1.5}
                       dot={false}
                       name="WHO下限(10g/kg/日)"
@@ -791,7 +786,7 @@ export default function BabyFeedingChart() {
                     />
                     <ReferenceLine
                       x={babyInput.currentDay}
-                      stroke="#fbbf24"
+                      stroke="#eab308"
                       strokeDasharray="3 3"
                     />
                   </AreaChart>
@@ -803,7 +798,7 @@ export default function BabyFeedingChart() {
                     style={{
                       width: "100%",
                       borderCollapse: "collapse",
-                      fontSize: 12,
+                      fontSize: 14,
                     }}
                   >
                     <thead>
@@ -821,11 +816,10 @@ export default function BabyFeedingChart() {
                             style={{
                               padding: "8px",
                               textAlign: "center",
-                              borderBottom:
-                                "2px solid rgba(59,130,246,0.3)",
-                              color: "#94a3b8",
+                              borderBottom: "2px solid #e2e8f0",
+                              color: "#64748b",
                               fontWeight: 700,
-                              fontSize: 11,
+                              fontSize: 13,
                             }}
                           >
                             {h}
@@ -846,10 +840,10 @@ export default function BabyFeedingChart() {
                             style={{
                               background:
                                 d === babyInput.currentDay || d === 21
-                                  ? "rgba(251,191,36,0.08)"
+                                  ? "#fefce8"
                                   : d % 2 === 0
-                                    ? "rgba(255,255,255,0.02)"
-                                    : "transparent",
+                                    ? "#f8fafc"
+                                    : "#fff",
                             }}
                           >
                             <td
@@ -859,8 +853,8 @@ export default function BabyFeedingChart() {
                                 fontWeight: 600,
                                 color:
                                   d <= babyInput.currentDay
-                                    ? "#f1f5f9"
-                                    : "#64748b",
+                                    ? "#1e293b"
+                                    : "#94a3b8",
                               }}
                             >
                               {d === 0
@@ -871,7 +865,7 @@ export default function BabyFeedingChart() {
                               style={{
                                 padding: "8px",
                                 textAlign: "center",
-                                color: "#34d399",
+                                color: "#16a34a",
                               }}
                             >
                               {(row.whoLow / 1000).toFixed(2)}kg
@@ -880,7 +874,7 @@ export default function BabyFeedingChart() {
                               style={{
                                 padding: "8px",
                                 textAlign: "center",
-                                color: "#22d3ee",
+                                color: "#0284c7",
                                 fontWeight: 600,
                               }}
                             >
@@ -890,7 +884,7 @@ export default function BabyFeedingChart() {
                               style={{
                                 padding: "8px",
                                 textAlign: "center",
-                                color: "#34d399",
+                                color: "#16a34a",
                               }}
                             >
                               {(row.whoHigh / 1000).toFixed(2)}kg
@@ -899,7 +893,7 @@ export default function BabyFeedingChart() {
                               style={{
                                 padding: "8px",
                                 textAlign: "center",
-                                color: "#f97316",
+                                color: "#ea580c",
                                 fontWeight: 700,
                               }}
                             >
@@ -915,7 +909,7 @@ export default function BabyFeedingChart() {
                                 padding: "8px",
                                 textAlign: "center",
                                 color:
-                                  diff > 0 ? "#ef4444" : "#34d399",
+                                  diff > 0 ? "#dc2626" : "#16a34a",
                                 fontWeight: 600,
                               }}
                             >
@@ -935,25 +929,26 @@ export default function BabyFeedingChart() {
             {tab === "feeding" && (
               <div
                 style={{
-                  background: "rgba(255,255,255,0.03)",
+                  background: "#fff",
                   borderRadius: 16,
                   padding: 24,
-                  border: "1px solid rgba(255,255,255,0.06)",
+                  border: "1px solid #e2e8f0",
+                  boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
                 }}
               >
                 <h2
                   style={{
-                    fontSize: 16,
+                    fontSize: 19,
                     fontWeight: 700,
-                    margin: "0 0 4px",
+                    margin: "0 0 6px",
                   }}
                 >
                   体重別 1回の授乳量 (8回/日)
                 </h2>
                 <p
                   style={{
-                    fontSize: 11,
-                    color: "#64748b",
+                    fontSize: 13,
+                    color: "#94a3b8",
                     margin: "0 0 20px",
                   }}
                 >
@@ -971,32 +966,32 @@ export default function BabyFeedingChart() {
                   >
                     <CartesianGrid
                       strokeDasharray="3 3"
-                      stroke="rgba(255,255,255,0.06)"
+                      stroke="#e2e8f0"
                     />
                     <XAxis
                       dataKey="weight"
-                      stroke="#475569"
-                      tick={{ fill: "#64748b", fontSize: 10 }}
+                      stroke="#cbd5e1"
+                      tick={{ fill: "#94a3b8", fontSize: 10 }}
                     />
                     <YAxis
-                      stroke="#475569"
-                      tick={{ fill: "#64748b", fontSize: 10 }}
+                      stroke="#cbd5e1"
+                      tick={{ fill: "#94a3b8", fontSize: 10 }}
                     />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend
-                      wrapperStyle={{ fontSize: 11, paddingTop: 10 }}
+                      wrapperStyle={{ fontSize: 13, paddingTop: 10 }}
                     />
                     <Bar
                       dataKey="who150per"
-                      fill="#22d3ee"
-                      name="WHO 150ml/kg"
+                      fill="#0ea5e9"
+                      name="WHO 150ml/kg (最低)"
                       unit="ml"
                       radius={[3, 3, 0, 0]}
                     />
                     <Bar
                       dataKey="who180per"
-                      fill="#34d399"
-                      name="WHO 180ml/kg"
+                      fill="#22c55e"
+                      name="WHO 180ml/kg (最高)"
                       unit="ml"
                       radius={[3, 3, 0, 0]}
                     />
@@ -1005,10 +1000,10 @@ export default function BabyFeedingChart() {
 
                 <h3
                   style={{
-                    fontSize: 14,
+                    fontSize: 17,
                     fontWeight: 700,
                     margin: "24px 0 12px",
-                    color: "#f1f5f9",
+                    color: "#1e293b",
                   }}
                 >
                   日齢別 WHO基準授乳量の推移 (0~90日)
@@ -1025,28 +1020,28 @@ export default function BabyFeedingChart() {
                   >
                     <CartesianGrid
                       strokeDasharray="3 3"
-                      stroke="rgba(255,255,255,0.06)"
+                      stroke="#e2e8f0"
                     />
                     <XAxis
                       dataKey="day"
-                      stroke="#475569"
-                      tick={{ fill: "#64748b", fontSize: 10 }}
+                      stroke="#cbd5e1"
+                      tick={{ fill: "#94a3b8", fontSize: 10 }}
                       tickFormatter={(v) =>
                         v % 7 === 0 ? `${v / 7}w` : ""
                       }
                     />
                     <YAxis
-                      stroke="#475569"
-                      tick={{ fill: "#64748b", fontSize: 10 }}
+                      stroke="#cbd5e1"
+                      tick={{ fill: "#94a3b8", fontSize: 10 }}
                     />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend
-                      wrapperStyle={{ fontSize: 11, paddingTop: 10 }}
+                      wrapperStyle={{ fontSize: 13, paddingTop: 10 }}
                     />
                     <Line
                       type="monotone"
                       dataKey="perFeed8"
-                      stroke="#34d399"
+                      stroke="#22c55e"
                       strokeWidth={2.5}
                       dot={false}
                       name="WHO 1回量(8回/日)"
@@ -1055,7 +1050,7 @@ export default function BabyFeedingChart() {
                     <Line
                       type="monotone"
                       dataKey="perFeed10"
-                      stroke="#60a5fa"
+                      stroke="#3b82f6"
                       strokeWidth={2}
                       dot={false}
                       name="WHO 1回量(10回/日)"
@@ -1063,7 +1058,7 @@ export default function BabyFeedingChart() {
                     />
                     <ReferenceLine
                       x={babyInput.currentDay}
-                      stroke="#fbbf24"
+                      stroke="#eab308"
                       strokeDasharray="3 3"
                     />
                   </LineChart>
@@ -1075,25 +1070,26 @@ export default function BabyFeedingChart() {
             {tab === "schedule" && (
               <div
                 style={{
-                  background: "rgba(255,255,255,0.03)",
+                  background: "#fff",
                   borderRadius: 16,
                   padding: 24,
-                  border: "1px solid rgba(255,255,255,0.06)",
+                  border: "1px solid #e2e8f0",
+                  boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
                 }}
               >
                 <h2
                   style={{
-                    fontSize: 16,
+                    fontSize: 19,
                     fontWeight: 700,
-                    margin: "0 0 4px",
+                    margin: "0 0 6px",
                   }}
                 >
                   日別授乳スケジュール (WHO基準)
                 </h2>
                 <p
                   style={{
-                    fontSize: 11,
-                    color: "#64748b",
+                    fontSize: 13,
+                    color: "#94a3b8",
                     margin: "0 0 16px",
                   }}
                 >
@@ -1113,18 +1109,18 @@ export default function BabyFeedingChart() {
                       key={r.id}
                       onClick={() => setScheduleRange(r.id)}
                       style={{
-                        padding: "8px 14px",
+                        padding: "10px 16px",
                         borderRadius: 8,
                         border: "none",
                         cursor: "pointer",
-                        fontSize: 12,
+                        fontSize: 14,
                         fontWeight: 600,
                         background:
                           scheduleRange === r.id
-                            ? "linear-gradient(135deg, #0ea5e9, #0284c7)"
-                            : "rgba(255,255,255,0.06)",
+                            ? "#0284c7"
+                            : "#e2e8f0",
                         color:
-                          scheduleRange === r.id ? "#fff" : "#94a3b8",
+                          scheduleRange === r.id ? "#fff" : "#64748b",
                       }}
                     >
                       {r.label}
@@ -1137,7 +1133,7 @@ export default function BabyFeedingChart() {
                     style={{
                       width: "100%",
                       borderCollapse: "collapse",
-                      fontSize: 11,
+                      fontSize: 13,
                     }}
                   >
                     <thead>
@@ -1157,11 +1153,10 @@ export default function BabyFeedingChart() {
                               padding: "8px 6px",
                               textAlign: "center",
                               whiteSpace: "pre-line",
-                              borderBottom:
-                                "2px solid rgba(59,130,246,0.3)",
-                              color: "#94a3b8",
+                              borderBottom: "2px solid #e2e8f0",
+                              color: "#64748b",
                               fontWeight: 700,
-                              fontSize: 10,
+                              fontSize: 12,
                             }}
                           >
                             {h}
@@ -1178,12 +1173,12 @@ export default function BabyFeedingChart() {
                             key={i}
                             style={{
                               background: isToday
-                                ? "rgba(251,191,36,0.12)"
+                                ? "#fefce8"
                                 : isWeekStart
-                                  ? "rgba(59,130,246,0.06)"
+                                  ? "#eff6ff"
                                   : i % 2 === 0
-                                    ? "rgba(255,255,255,0.02)"
-                                    : "transparent",
+                                    ? "#f8fafc"
+                                    : "#fff",
                             }}
                           >
                             <td
@@ -1193,10 +1188,10 @@ export default function BabyFeedingChart() {
                                 fontWeight:
                                   isToday || isWeekStart ? 800 : 400,
                                 color: isToday
-                                  ? "#fbbf24"
+                                  ? "#ca8a04"
                                   : isWeekStart
-                                    ? "#60a5fa"
-                                    : "#e2e8f0",
+                                    ? "#2563eb"
+                                    : "#1e293b",
                               }}
                             >
                               {isWeekStart && !isToday
@@ -1208,7 +1203,7 @@ export default function BabyFeedingChart() {
                               style={{
                                 padding: "7px 6px",
                                 textAlign: "center",
-                                color: "#64748b",
+                                color: "#94a3b8",
                               }}
                             >
                               {d.date}
@@ -1226,7 +1221,7 @@ export default function BabyFeedingChart() {
                               style={{
                                 padding: "7px 6px",
                                 textAlign: "center",
-                                color: "#22d3ee",
+                                color: "#0284c7",
                               }}
                             >
                               {d.mlPerKg}
@@ -1235,7 +1230,7 @@ export default function BabyFeedingChart() {
                               style={{
                                 padding: "7px 6px",
                                 textAlign: "center",
-                                color: "#34d399",
+                                color: "#16a34a",
                                 fontWeight: 600,
                               }}
                             >
@@ -1246,8 +1241,8 @@ export default function BabyFeedingChart() {
                                 padding: "7px 6px",
                                 textAlign: "center",
                                 fontWeight: 700,
-                                color: "#34d399",
-                                background: "rgba(34,211,153,0.06)",
+                                color: "#15803d",
+                                background: "#f0fdf4",
                               }}
                             >
                               {d.perFeed8}ml
@@ -1256,7 +1251,7 @@ export default function BabyFeedingChart() {
                               style={{
                                 padding: "7px 6px",
                                 textAlign: "center",
-                                color: "#60a5fa",
+                                color: "#2563eb",
                               }}
                             >
                               {d.perFeed10}ml
@@ -1274,15 +1269,16 @@ export default function BabyFeedingChart() {
             {tab === "summary" && whoPerFeed && (
               <div
                 style={{
-                  background: "rgba(255,255,255,0.03)",
+                  background: "#fff",
                   borderRadius: 16,
                   padding: 28,
-                  border: "1px solid rgba(255,255,255,0.06)",
+                  border: "1px solid #e2e8f0",
+                  boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
                 }}
               >
                 <h2
                   style={{
-                    fontSize: 17,
+                    fontSize: 21,
                     fontWeight: 800,
                     margin: "0 0 20px",
                   }}
@@ -1292,9 +1288,9 @@ export default function BabyFeedingChart() {
 
                 <Section
                   title="患児情報"
-                  color="#60a5fa"
-                  bg="rgba(59,130,246,0.06)"
-                  border="rgba(59,130,246,0.15)"
+                  color="#2563eb"
+                  bg="#eff6ff"
+                  border="#bfdbfe"
                 >
                   出生日: {formatDate(babyInput.birthDate)} / 出生体重:{" "}
                   {babyInput.birthWeight.toLocaleString()}g
@@ -1312,9 +1308,9 @@ export default function BabyFeedingChart() {
 
                 <Section
                   title="WHO基準の授乳量 (現在体重ベース)"
-                  color="#34d399"
-                  bg="rgba(34,211,153,0.06)"
-                  border="rgba(34,211,153,0.15)"
+                  color="#16a34a"
+                  bg="#f0fdf4"
+                  border="#bbf7d0"
                 >
                   <div
                     style={{
@@ -1325,63 +1321,63 @@ export default function BabyFeedingChart() {
                   >
                     <div
                       style={{
-                        background: "rgba(34,211,153,0.08)",
+                        background: "#fff",
                         borderRadius: 8,
                         padding: 14,
-                        border: "1px solid rgba(34,211,153,0.2)",
+                        border: "1px solid #bbf7d0",
                       }}
                     >
                       <div
                         style={{
-                          fontSize: 10,
-                          color: "#6ee7b7",
+                          fontSize: 12,
+                          color: "#16a34a",
                           fontWeight: 700,
                         }}
                       >
-                        WHO下限 (150ml/kg/日)
+                        最低 (150ml/kg/日)
                       </div>
                       <div
                         style={{
-                          fontSize: 22,
+                          fontSize: 26,
                           fontWeight: 800,
-                          color: "#34d399",
+                          color: "#15803d",
                           margin: "6px 0",
                         }}
                       >
                         {whoPerFeed.low}ml x 8回
                       </div>
-                      <div style={{ fontSize: 12, color: "#cbd5e1" }}>
+                      <div style={{ fontSize: 12, color: "#64748b" }}>
                         {whoPerFeed.totalLow}ml/日
                       </div>
                     </div>
                     <div
                       style={{
-                        background: "rgba(34,211,153,0.08)",
+                        background: "#fff",
                         borderRadius: 8,
                         padding: 14,
-                        border: "1px solid rgba(34,211,153,0.2)",
+                        border: "1px solid #bfdbfe",
                       }}
                     >
                       <div
                         style={{
-                          fontSize: 10,
-                          color: "#6ee7b7",
+                          fontSize: 12,
+                          color: "#2563eb",
                           fontWeight: 700,
                         }}
                       >
-                        WHO上限 (180ml/kg/日)
+                        最高 (180ml/kg/日)
                       </div>
                       <div
                         style={{
-                          fontSize: 22,
+                          fontSize: 26,
                           fontWeight: 800,
-                          color: "#22d3ee",
+                          color: "#1d4ed8",
                           margin: "6px 0",
                         }}
                       >
                         {whoPerFeed.high}ml x 8回
                       </div>
-                      <div style={{ fontSize: 12, color: "#cbd5e1" }}>
+                      <div style={{ fontSize: 12, color: "#64748b" }}>
                         {whoPerFeed.totalHigh}ml/日
                       </div>
                     </div>
@@ -1390,9 +1386,9 @@ export default function BabyFeedingChart() {
 
                 <Section
                   title="懸念チェックリスト"
-                  color="#fbbf24"
-                  bg="rgba(251,191,36,0.06)"
-                  border="rgba(251,191,36,0.15)"
+                  color="#ca8a04"
+                  bg="#fefce8"
+                  border="#fef08a"
                 >
                   {babyInput.actualGrowthRate > 16 && (
                     <>
@@ -1423,9 +1419,9 @@ export default function BabyFeedingChart() {
 
                 <Section
                   title="医師にご確認いただきたいこと"
-                  color="#34d399"
-                  bg="rgba(34,211,153,0.06)"
-                  border="rgba(34,211,153,0.15)"
+                  color="#16a34a"
+                  bg="#f0fdf4"
+                  border="#bbf7d0"
                 >
                   1. WHO基準 (150~180ml/kg/日)
                   に基づく適切な授乳量
@@ -1441,12 +1437,12 @@ export default function BabyFeedingChart() {
                 <Section
                   title="参考文献"
                   color="#64748b"
-                  bg="rgba(255,255,255,0.02)"
-                  border="rgba(255,255,255,0.06)"
+                  bg="#f8fafc"
+                  border="#e2e8f0"
                 >
                   <div
                     style={{
-                      fontSize: 10,
+                      fontSize: 12,
                       color: "#64748b",
                       lineHeight: 2,
                     }}
@@ -1472,11 +1468,12 @@ export default function BabyFeedingChart() {
                     marginTop: 16,
                     padding: 14,
                     borderRadius: 8,
-                    fontSize: 11,
-                    color: "#94a3b8",
+                    fontSize: 13,
+                    color: "#64748b",
                     textAlign: "center",
                     lineHeight: 1.8,
-                    border: "1px solid rgba(255,255,255,0.06)",
+                    border: "1px solid #e2e8f0",
+                    background: "#f8fafc",
                   }}
                 >
                   ※この資料はWHO公式ガイドラインに基づく参考情報です。
