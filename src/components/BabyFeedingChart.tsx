@@ -91,12 +91,16 @@ function generateWeightData(input: BabyInput): WeightRow[] {
           ? (day - 7) * (wActual / 1000) * input.actualGrowthRate
           : 0);
     } else {
-      // 90日以降は成長速度が自然に低下 (WHO基準: 3~6ヶ月で減衰)
-      const decay = day <= 90 ? 1.0 : 1.0 - ((day - 90) / 90) * 0.25;
-      wLow = wLow + (wLow / 1000) * 10 * decay;
-      wHigh = wHigh + (wHigh / 1000) * 16 * decay;
-      wMid = wMid + (wMid / 1000) * 13 * decay;
-      wActual = wActual + (wActual / 1000) * input.actualGrowthRate * decay;
+      // 出生体重ベースの絶対日増加量 + 月齢に応じた減衰
+      // 複利ではなく単利的に計算（複利だと指数関数的に爆発するため）
+      const t = (day - 14) / 166; // 0 at day14, 1 at day180
+      const decay = 1 - t * 0.6; // 14日で100% → 180日で40%に減衰
+      wLow = wLow + (input.birthWeight / 1000) * 10 * decay;
+      wHigh = wHigh + (input.birthWeight / 1000) * 16 * decay;
+      wMid = wMid + (input.birthWeight / 1000) * 13 * decay;
+      wActual =
+        wActual +
+        (input.birthWeight / 1000) * input.actualGrowthRate * decay;
     }
 
     data.push({
@@ -167,8 +171,9 @@ function generateDailySchedule(input: BabyInput): ScheduleRow[] {
     } else if (day < 10) {
       weight = weight + 15;
     } else {
-      const decay = day <= 90 ? 1.0 : 1.0 - ((day - 90) / 90) * 0.25;
-      weight = weight + (weight / 1000) * 13 * decay;
+      const t = Math.max(0, day - 14) / 166;
+      const decay = 1 - t * 0.6;
+      weight = weight + (input.birthWeight / 1000) * 13 * decay;
     }
   }
   return data;
