@@ -39,7 +39,7 @@ interface FeedingRow {
   weight: string;
   weightNum: number;
   who150per: number;
-  who180per: number;
+  who180perDiff: number;
 }
 
 interface ScheduleRow {
@@ -111,18 +111,20 @@ function generateWeightData(input: BabyInput): WeightRow[] {
   return data;
 }
 
-function generateFeedingData(): FeedingRow[] {
+function generateFeedingData(count: number): FeedingRow[] {
   const data: FeedingRow[] = [];
   const weights = [
     2.0, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1, 3.2,
     3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 4.0,
   ];
   for (const w of weights) {
+    const low = Math.round((w * 150) / count);
+    const high = Math.round((w * 180) / count);
     data.push({
       weight: `${w}kg`,
       weightNum: w,
-      who150per: Math.round((w * 150) / 8),
-      who180per: Math.round((w * 180) / 8),
+      who150per: low,
+      who180perDiff: high - low,
     });
   }
   return data;
@@ -279,6 +281,8 @@ export default function BabyFeedingChart() {
   const [birthDateStr, setBirthDateStr] = useState("");
   const [birthWeightStr, setBirthWeightStr] = useState("");
   const [currentWeightStr, setCurrentWeightStr] = useState("");
+  const [feedCountStr, setFeedCountStr] = useState("8");
+  const feedCount = parseInt(feedCountStr, 10) || 8;
   const [submitted, setSubmitted] = useState(false);
 
   const babyInput = useMemo<BabyInput | null>(() => {
@@ -314,7 +318,7 @@ export default function BabyFeedingChart() {
     () => (babyInput ? generateWeightData(babyInput) : []),
     [babyInput]
   );
-  const feedingData = useMemo(() => generateFeedingData(), []);
+  const feedingData = useMemo(() => generateFeedingData(feedCount), [feedCount]);
   const scheduleData = useMemo(
     () => (babyInput ? generateDailySchedule(babyInput) : []),
     [babyInput]
@@ -346,8 +350,52 @@ export default function BabyFeedingChart() {
     (d) => d.day % 3 === 0 || (babyInput && d.day === babyInput.currentDay)
   );
 
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const validate = (): Record<string, string> => {
+    const errs: Record<string, string> = {};
+
+    if (!birthDateStr) {
+      errs.birthDate = "生年月日を入力してください";
+    } else {
+      const d = new Date(birthDateStr + "T00:00:00");
+      if (isNaN(d.getTime())) {
+        errs.birthDate = "有効な日付を入力してください";
+      } else if (d > new Date()) {
+        errs.birthDate = "未来の日付は入力できません";
+      }
+    }
+
+    const bw = parseInt(birthWeightStr, 10);
+    if (!birthWeightStr) {
+      errs.birthWeight = "出生体重を入力してください";
+    } else if (isNaN(bw) || bw < 300 || bw > 6000) {
+      errs.birthWeight = "300~6000gの範囲で入力してください";
+    }
+
+    const cw = parseInt(currentWeightStr, 10);
+    if (!currentWeightStr) {
+      errs.currentWeight = "現在の体重を入力してください";
+    } else if (isNaN(cw) || cw < 300 || cw > 15000) {
+      errs.currentWeight = "300~15000gの範囲で入力してください";
+    } else if (!isNaN(bw) && cw < bw * 0.85) {
+      errs.currentWeight = "出生体重の85%未満です。確認してください";
+    }
+
+    const fc = parseInt(feedCountStr, 10);
+    if (!feedCountStr) {
+      errs.feedCount = "回数を入力してください";
+    } else if (isNaN(fc) || fc < 1 || fc > 20) {
+      errs.feedCount = "1~20の範囲で入力してください";
+    }
+
+    return errs;
+  };
+
   const handleSubmit = () => {
-    if (!birthDateStr || !birthWeightStr || !currentWeightStr) return;
+    const errs = validate();
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) return;
     setSubmitted(true);
   };
 
@@ -359,8 +407,8 @@ export default function BabyFeedingChart() {
     : 0;
   const whoPerFeed = babyInput
     ? {
-        low: Math.round(((babyInput.currentWeight / 1000) * 150) / 8),
-        high: Math.round(((babyInput.currentWeight / 1000) * 180) / 8),
+        low: Math.round(((babyInput.currentWeight / 1000) * 150) / feedCount),
+        high: Math.round(((babyInput.currentWeight / 1000) * 180) / feedCount),
         totalLow: Math.round((babyInput.currentWeight / 1000) * 150),
         totalHigh: Math.round((babyInput.currentWeight / 1000) * 180),
       }
@@ -385,6 +433,13 @@ export default function BabyFeedingChart() {
     marginBottom: 6,
     display: "block",
     letterSpacing: 0.5,
+  } as const;
+
+  const errStyle = {
+    fontSize: 12,
+    color: "#dc2626",
+    marginTop: 4,
+    fontWeight: 600,
   } as const;
 
   return (
@@ -424,7 +479,7 @@ export default function BabyFeedingChart() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr auto",
+              gridTemplateColumns: "1fr 1fr 1fr 0.6fr auto",
               gap: 16,
               alignItems: "end",
             }}
@@ -437,10 +492,12 @@ export default function BabyFeedingChart() {
                 onChange={(e) => {
                   setBirthDateStr(e.target.value);
                   setSubmitted(false);
+                  setErrors((prev) => { const { birthDate: _, ...rest } = prev; return rest; });
                 }}
                 max={toDateInputValue(new Date())}
-                style={inputStyle}
+                style={{ ...inputStyle, borderColor: errors.birthDate ? "#dc2626" : "#cbd5e1" }}
               />
+              {errors.birthDate && <div style={errStyle}>{errors.birthDate}</div>}
             </div>
             <div>
               <label style={labelStyle}>出生体重 (g)</label>
@@ -450,10 +507,12 @@ export default function BabyFeedingChart() {
                 onChange={(e) => {
                   setBirthWeightStr(e.target.value);
                   setSubmitted(false);
+                  setErrors((prev) => { const { birthWeight: _, ...rest } = prev; return rest; });
                 }}
                 placeholder="例: 2260"
-                style={inputStyle}
+                style={{ ...inputStyle, borderColor: errors.birthWeight ? "#dc2626" : "#cbd5e1" }}
               />
+              {errors.birthWeight && <div style={errStyle}>{errors.birthWeight}</div>}
             </div>
             <div>
               <label style={labelStyle}>現在の体重 (g)</label>
@@ -463,10 +522,27 @@ export default function BabyFeedingChart() {
                 onChange={(e) => {
                   setCurrentWeightStr(e.target.value);
                   setSubmitted(false);
+                  setErrors((prev) => { const { currentWeight: _, ...rest } = prev; return rest; });
                 }}
                 placeholder="例: 2950"
-                style={inputStyle}
+                style={{ ...inputStyle, borderColor: errors.currentWeight ? "#dc2626" : "#cbd5e1" }}
               />
+              {errors.currentWeight && <div style={errStyle}>{errors.currentWeight}</div>}
+            </div>
+            <div>
+              <label style={labelStyle}>授乳回数/日</label>
+              <input
+                type="number"
+                value={feedCountStr}
+                onChange={(e) => {
+                  setFeedCountStr(e.target.value);
+                  setSubmitted(false);
+                  setErrors((prev) => { const { feedCount: _, ...rest } = prev; return rest; });
+                }}
+                placeholder="8"
+                style={{ ...inputStyle, borderColor: errors.feedCount ? "#dc2626" : "#cbd5e1" }}
+              />
+              {errors.feedCount && <div style={errStyle}>{errors.feedCount}</div>}
             </div>
             <button
               type="button"
@@ -575,7 +651,7 @@ export default function BabyFeedingChart() {
                     margin: "4px 0",
                   }}
                 >
-                  {whoPerFeed.low}ml x 8回
+                  {whoPerFeed.low}ml x {feedCount}回
                 </div>
                 <div style={{ fontSize: 14, color: "#64748b" }}>
                   1日合計 {whoPerFeed.totalLow}ml (150ml/kg/日)
@@ -602,7 +678,7 @@ export default function BabyFeedingChart() {
                     margin: "4px 0",
                   }}
                 >
-                  {whoPerFeed.high}ml x 8回
+                  {whoPerFeed.high}ml x {feedCount}回
                 </div>
                 <div style={{ fontSize: 14, color: "#64748b" }}>
                   1日合計 {whoPerFeed.totalHigh}ml (180ml/kg/日)
@@ -943,7 +1019,7 @@ export default function BabyFeedingChart() {
                     margin: "0 0 6px",
                   }}
                 >
-                  体重別 1回の授乳量 (8回/日)
+                  体重別 1回の授乳量 ({feedCount}回/日)
                 </h2>
                 <p
                   style={{
@@ -983,15 +1059,16 @@ export default function BabyFeedingChart() {
                     />
                     <Bar
                       dataKey="who150per"
-                      fill="#0ea5e9"
-                      name="WHO 150ml/kg (最低)"
+                      stackId="a"
+                      fill="#16a34a"
+                      name="最低 (150ml/kg)"
                       unit="ml"
-                      radius={[3, 3, 0, 0]}
                     />
                     <Bar
-                      dataKey="who180per"
-                      fill="#22c55e"
-                      name="WHO 180ml/kg (最高)"
+                      dataKey="who180perDiff"
+                      stackId="a"
+                      fill="#2563eb"
+                      name="最高までの差分 (180ml/kg)"
                       unit="ml"
                       radius={[3, 3, 0, 0]}
                     />
@@ -1344,7 +1421,7 @@ export default function BabyFeedingChart() {
                           margin: "6px 0",
                         }}
                       >
-                        {whoPerFeed.low}ml x 8回
+                        {whoPerFeed.low}ml x {feedCount}回
                       </div>
                       <div style={{ fontSize: 12, color: "#64748b" }}>
                         {whoPerFeed.totalLow}ml/日
@@ -1375,7 +1452,7 @@ export default function BabyFeedingChart() {
                           margin: "6px 0",
                         }}
                       >
-                        {whoPerFeed.high}ml x 8回
+                        {whoPerFeed.high}ml x {feedCount}回
                       </div>
                       <div style={{ fontSize: 12, color: "#64748b" }}>
                         {whoPerFeed.totalHigh}ml/日
@@ -1414,7 +1491,7 @@ export default function BabyFeedingChart() {
                     </>
                   )}
                   - WHO基準の授乳量: {whoPerFeed.low}~{whoPerFeed.high}ml x
-                  8回/日 ({whoPerFeed.totalLow}~{whoPerFeed.totalHigh}ml/日)
+                  {feedCount}回/日 ({whoPerFeed.totalLow}~{whoPerFeed.totalHigh}ml/日)
                 </Section>
 
                 <Section
