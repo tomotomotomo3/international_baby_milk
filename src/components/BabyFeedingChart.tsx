@@ -476,14 +476,7 @@ export default function BabyFeedingChart() {
           </h1>
 
           {/* Input Form */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr 0.6fr auto",
-              gap: 16,
-              alignItems: "end",
-            }}
-          >
+          <div className="form-grid">
             <div>
               <label style={labelStyle}>生年月日</label>
               <input
@@ -567,10 +560,8 @@ export default function BabyFeedingChart() {
           {/* Baby Info Summary */}
           {babyInput && (
             <div
+              className="info-row"
               style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 20,
                 marginTop: 16,
                 paddingTop: 16,
                 borderTop: "1px solid #e2e8f0",
@@ -621,10 +612,8 @@ export default function BabyFeedingChart() {
           {/* Today's Milk Guide */}
           {babyInput && whoPerFeed && (
             <div
+              className="milk-grid"
               style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 12,
                 marginTop: 16,
                 paddingTop: 16,
                 borderTop: "1px solid #e2e8f0",
@@ -693,12 +682,8 @@ export default function BabyFeedingChart() {
           <>
             {/* Tabs */}
             <div
-              style={{
-                display: "flex",
-                gap: 6,
-                marginBottom: 20,
-                flexWrap: "wrap",
-              }}
+              className="tab-row"
+              style={{ marginBottom: 20 }}
             >
               {tabs.map((t) => (
                 <button
@@ -1174,12 +1159,8 @@ export default function BabyFeedingChart() {
                 </p>
 
                 <div
-                  style={{
-                    display: "flex",
-                    gap: 6,
-                    marginBottom: 16,
-                    flexWrap: "wrap",
-                  }}
+                  className="week-row"
+                  style={{ marginBottom: 16 }}
                 >
                   {weekRanges.map((r) => (
                     <button
@@ -1389,13 +1370,7 @@ export default function BabyFeedingChart() {
                   bg="#f0fdf4"
                   border="#bbf7d0"
                 >
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      gap: 12,
-                    }}
-                  >
+                  <div className="summary-compare-grid">
                     <div
                       style={{
                         background: "#fff",
