@@ -10,8 +10,6 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  AreaChart,
-  Area,
   BarChart,
   Bar,
   ReferenceLine,
@@ -28,11 +26,43 @@ interface BabyInput {
 interface WeightRow {
   day: number;
   date: string;
-  whoLow: number;
-  whoHigh: number;
-  whoMid: number;
+  whoEstimate: number;
   actual: number | null;
   actualProjection: number | null;
+}
+
+// WHO Child Growth Standards 2006 - 50th percentile weight (grams)
+// Boys and girls average
+// Source: WHO Multicentre Growth Reference Study Group
+const WHO_WEIGHT_REFERENCE: [number, number][] = [
+  [0, 3300],
+  [3, 3200], // physiological nadir (~3%)
+  [7, 3300], // recovery
+  [14, 3600],
+  [30, 4300],
+  [45, 4900],
+  [60, 5400],
+  [75, 5800],
+  [90, 6200],
+  [105, 6500],
+  [120, 6800],
+  [135, 7100],
+  [150, 7300],
+  [165, 7500],
+  [180, 7700],
+];
+
+function interpolateWHO(day: number): number {
+  const ref = WHO_WEIGHT_REFERENCE;
+  if (day <= ref[0][0]) return ref[0][1];
+  if (day >= ref[ref.length - 1][0]) return ref[ref.length - 1][1];
+  for (let i = 0; i < ref.length - 1; i++) {
+    if (day >= ref[i][0] && day <= ref[i + 1][0]) {
+      const t = (day - ref[i][0]) / (ref[i + 1][0] - ref[i][0]);
+      return ref[i][1] + t * (ref[i + 1][1] - ref[i][1]);
+    }
+  }
+  return ref[ref.length - 1][1];
 }
 
 interface FeedingRow {
@@ -55,63 +85,58 @@ interface ScheduleRow {
 
 function generateWeightData(input: BabyInput): WeightRow[] {
   const data: WeightRow[] = [];
-  let wLow = input.birthWeight;
-  let wHigh = input.birthWeight;
-  let wMid = input.birthWeight;
-  let wActual = input.birthWeight;
+  // WHO基準を出生体重で比例スケーリング
+  const scaleFactor = input.birthWeight / 3300;
+
+  // 実績の1日あたり体重増加(g)
+  const actualDailyGain =
+    (input.currentWeight - input.birthWeight) / input.currentDay;
 
   for (let day = 0; day <= 180; day++) {
     const date = new Date(input.birthDate);
     date.setDate(date.getDate() + day);
     const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
 
-    if (day <= 5) {
-      wLow = input.birthWeight * (1 - 0.07 * Math.min(day / 4, 1));
-      wHigh = input.birthWeight * (1 - 0.05 * Math.min(day / 3, 1));
-      wMid = input.birthWeight * (1 - 0.06 * Math.min(day / 3.5, 1));
-      wActual = input.birthWeight * (1 - 0.05 * Math.min(day / 3, 1));
-    } else if (day <= 14) {
-      const rp = (day - 5) / 9;
-      wLow =
-        input.birthWeight * 0.93 +
-        input.birthWeight * 0.07 * rp +
-        (day > 10 ? (day - 10) * (wLow / 1000) * 10 : 0);
-      wHigh =
-        input.birthWeight * 0.95 +
-        input.birthWeight * 0.05 * rp +
-        (day > 8 ? (day - 8) * (wHigh / 1000) * 16 : 0);
-      wMid =
-        input.birthWeight * 0.94 +
-        input.birthWeight * 0.06 * rp +
-        (day > 9 ? (day - 9) * (wMid / 1000) * 13 : 0);
-      wActual =
-        input.birthWeight * 0.95 +
-        input.birthWeight * 0.05 * rp +
-        (day > 7
-          ? (day - 7) * (wActual / 1000) * input.actualGrowthRate
-          : 0);
+    // WHO推定体重: WHO 50th percentile をスケーリング
+    const whoEstimate = Math.round(interpolateWHO(day) * scaleFactor);
+
+    // 実績・予測
+    let actualWeight: number;
+    if (day <= input.currentDay) {
+      // 過去: 出生体重 → 現在体重を線形補間
+      const t = day / input.currentDay;
+      actualWeight = input.birthWeight + t * (input.currentWeight - input.birthWeight);
     } else {
-      // 出生体重ベースの絶対日増加量 + 月齢に応じた減衰
-      // 複利ではなく単利的に計算（複利だと指数関数的に爆発するため）
-      const t = (day - 14) / 166; // 0 at day14, 1 at day180
-      const decay = 1 - t * 0.6; // 14日で100% → 180日で40%に減衰
-      wLow = wLow + (input.birthWeight / 1000) * 10 * decay;
-      wHigh = wHigh + (input.birthWeight / 1000) * 16 * decay;
-      wMid = wMid + (input.birthWeight / 1000) * 13 * decay;
-      wActual =
-        wActual +
-        (input.birthWeight / 1000) * input.actualGrowthRate * decay;
+      // 将来: WHO曲線の形状に沿った予測
+      // 今日時点のWHO日増加量 vs 将来のWHO日増加量の比率で減衰
+      const whoToday = interpolateWHO(input.currentDay) * scaleFactor;
+      const whoTomorrow = interpolateWHO(input.currentDay + 1) * scaleFactor;
+      const whoDailyGainAtToday = whoTomorrow - whoToday;
+      const whoAtDay = interpolateWHO(day) * scaleFactor;
+      const whoAtDayPrev = interpolateWHO(day - 1) * scaleFactor;
+      const whoDailyGainAtDay = whoAtDay - whoAtDayPrev;
+      const decayRatio =
+        whoDailyGainAtToday > 0
+          ? whoDailyGainAtDay / whoDailyGainAtToday
+          : 1;
+      const projectedDailyGain = actualDailyGain * Math.max(0, decayRatio);
+      const daysFromNow = day - input.currentDay;
+      // 累積: 各日のgainを足す（簡易的にdecayRatioの平均を使用）
+      const avgDecay =
+        whoDailyGainAtToday > 0
+          ? ((whoAtDay - whoToday) / (daysFromNow * whoDailyGainAtToday))
+          : 1;
+      actualWeight =
+        input.currentWeight + daysFromNow * actualDailyGain * Math.max(0, avgDecay);
     }
 
     data.push({
       day,
       date: dateStr,
-      whoLow: Math.round(wLow),
-      whoHigh: Math.round(wHigh),
-      whoMid: Math.round(wMid),
-      actual: day <= input.currentDay ? Math.round(wActual) : null,
+      whoEstimate,
+      actual: day <= input.currentDay ? Math.round(actualWeight) : null,
       actualProjection:
-        day >= input.currentDay ? Math.round(wActual) : null,
+        day >= input.currentDay ? Math.round(actualWeight) : null,
     });
   }
   return data;
@@ -965,33 +990,13 @@ export default function BabyFeedingChart() {
                     margin: "0 0 20px",
                   }}
                 >
-                  WHO基準の成長範囲 vs 現在のペースの予測
+                  WHO 50th percentile基準 vs 現在のペース予測
                 </p>
                 <ResponsiveContainer width="100%" height={380}>
-                  <AreaChart
+                  <LineChart
                     data={weightData}
                     margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
                   >
-                    <defs>
-                      <linearGradient
-                        id="whoRange"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="0%"
-                          stopColor="#22c55e"
-                          stopOpacity={0.15}
-                        />
-                        <stop
-                          offset="100%"
-                          stopColor="#22c55e"
-                          stopOpacity={0.02}
-                        />
-                      </linearGradient>
-                    </defs>
                     <CartesianGrid
                       strokeDasharray="3 3"
                       stroke="#e2e8f0"
@@ -1018,41 +1023,14 @@ export default function BabyFeedingChart() {
                     <Legend
                       wrapperStyle={{ fontSize: 13, paddingTop: 10 }}
                     />
-                    <Area
-                      type="monotone"
-                      dataKey="whoHigh"
-                      stroke="none"
-                      fill="url(#whoRange)"
-                      name="WHO範囲"
-                    />
                     <Line
                       type="monotone"
-                      dataKey="whoHigh"
-                      stroke="#22c55e"
-                      strokeWidth={1.5}
+                      dataKey="whoEstimate"
+                      stroke="#2563eb"
+                      strokeWidth={2.5}
                       dot={false}
-                      name="WHO上限(16g/kg/日)"
+                      name="WHO推定"
                       unit="g"
-                      strokeDasharray="6 3"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="whoMid"
-                      stroke="#0ea5e9"
-                      strokeWidth={2}
-                      dot={false}
-                      name="WHO中央値(13g/kg/日)"
-                      unit="g"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="whoLow"
-                      stroke="#22c55e"
-                      strokeWidth={1.5}
-                      dot={false}
-                      name="WHO下限(10g/kg/日)"
-                      unit="g"
-                      strokeDasharray="6 3"
                     />
                     <Line
                       type="monotone"
@@ -1086,7 +1064,7 @@ export default function BabyFeedingChart() {
                         fontSize: 13,
                       }}
                     />
-                  </AreaChart>
+                  </LineChart>
                 </ResponsiveContainer>
 
                 {/* Milestone table */}
@@ -1102,9 +1080,7 @@ export default function BabyFeedingChart() {
                       <tr>
                         {[
                           "時点",
-                          "WHO下限",
-                          "WHO中央値",
-                          "WHO上限",
+                          "WHO推定",
                           "現ペース予測",
                           "差",
                         ].map((h, i) => (
@@ -1130,7 +1106,7 @@ export default function BabyFeedingChart() {
                         if (!row) return null;
                         const diff =
                           (row.actualProjection || row.actual || 0) -
-                          row.whoMid;
+                          row.whoEstimate;
                         return (
                           <tr
                             key={d}
@@ -1162,29 +1138,11 @@ export default function BabyFeedingChart() {
                               style={{
                                 padding: "8px",
                                 textAlign: "center",
-                                color: "#16a34a",
-                              }}
-                            >
-                              {(row.whoLow / 1000).toFixed(2)}kg
-                            </td>
-                            <td
-                              style={{
-                                padding: "8px",
-                                textAlign: "center",
-                                color: "#0284c7",
+                                color: "#2563eb",
                                 fontWeight: 600,
                               }}
                             >
-                              {(row.whoMid / 1000).toFixed(2)}kg
-                            </td>
-                            <td
-                              style={{
-                                padding: "8px",
-                                textAlign: "center",
-                                color: "#16a34a",
-                              }}
-                            >
-                              {(row.whoHigh / 1000).toFixed(2)}kg
+                              {(row.whoEstimate / 1000).toFixed(2)}kg
                             </td>
                             <td
                               style={{
