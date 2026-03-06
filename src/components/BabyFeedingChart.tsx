@@ -300,6 +300,7 @@ interface TooltipPayloadItem {
   name: string;
   value: number | string;
   unit?: string;
+  payload?: Record<string, unknown>;
 }
 
 function CustomTooltip({
@@ -310,7 +311,10 @@ function CustomTooltip({
   payload?: TooltipPayloadItem[];
   label?: string | number;
 }) {
-  if (!active || !payload) return null;
+  if (!active || !payload || payload.length === 0) return null;
+  const row = payload[0].payload;
+  const date = row?.date as string | undefined;
+  const day = row?.day as number | undefined;
   return (
     <div
       style={{
@@ -321,7 +325,14 @@ function CustomTooltip({
         boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
       }}
     >
-      {payload.map((p, i) => (
+      {(date != null || day != null) && (
+        <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 6px", fontWeight: 700 }}>
+          {date}{day != null ? ` (生後${day}日)` : ""}
+        </p>
+      )}
+      {payload
+        .filter((p) => p.name && p.name.length > 0)
+        .map((p, i) => (
         <p
           key={i}
           style={{
